@@ -7,7 +7,7 @@ This is a learning exercise where I went past the copy/paste procedure from the
 tutorials provided from
 [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro),
 and made implementing the server and/or client as hard as possible. To do so, I
-studied and manually typed the code like it was the year 2017/
+studied and manually typed the code like it was the year 2017.
 
 ## Authorizations
 
