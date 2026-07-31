@@ -82,6 +82,7 @@ new-item <server>.py
 
 1. Use `uv`
 
+<!-- ```
 (markedPages.index)=> {
     <CodeGroup>
       ```bash macOS/Linux theme={null}
@@ -93,6 +94,7 @@ new-item <server>.py
       ```
     </CodeGroup>
 }
+``` -->
 
 ```batch
 powerrshell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
@@ -102,6 +104,7 @@ Restart the terminal.
 
 2. Project setup
 
+<!-- ```
 (markedPages.index)=> {
     <CodeGroup>
       ```bash macOS/Linux theme={null}
@@ -137,6 +140,7 @@ Restart the terminal.
       ```
     </CodeGroup>
 }
+``` -->
 
 ```batch
 :: Create directory

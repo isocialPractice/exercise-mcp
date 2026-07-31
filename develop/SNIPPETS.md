@@ -7,9 +7,9 @@ this server will have:
 
 - [Entry](server.lang-extension): `server.lang-extension`
 - [Helper functions](utils): `utils/`
-  (commonLangSyntax.use("_" | camel-case)=>- [make_nws_request.lang-extension](utils/make_nws_request.lang-extension)
-  (commonLangSyntax.use("_" | camel-case)=>- [dormat_alert.lang-extension](utils/format_alert.lang-extension)
-  (commonLangSyntax.use("_" | camel-case)=>- [categorize_local_weather.lang-extension](utils/categorize_local_weather.lang-extension): Summary
+  `(commonLangSyntax.use("_" | camel-case)=>`- [make_nws_request.lang-extension](utils/make_nws_request.lang-extension)
+  `(commonLangSyntax.use("_" | camel-case)=>`- [dormat_alert.lang-extension](utils/format_alert.lang-extension)
+  `(commonLangSyntax.use("_" | camel-case)=>`- [categorize_local_weather.lang-extension](utils/categorize_local_weather.lang-extension): Summary
    for GUI instance of server, so weather will change display according to:
     - Temperature: Hot, Mediumm, or Cold
       - Cold: **temp. < 32°F(0°C)**
@@ -27,7 +27,7 @@ this server will have:
       - If local time is past 8PM and less than 8AM, then it is daytime; else it is night time
         - Render the GUI application accordingly
 - [GUI rendering](gui): `gui/`
-  (commonLangSyntax.use("_" | camel-case)=>- [render_weather.lang-extension](gui/render_weather.lang-extension)
+  `(commonLangSyntax.use("_" | camel-case)=>`- [render_weather.lang-extension](gui/render_weather.lang-extension)
 - [GUI Graphics](assets): `assets/`
   - [cloud.svg](assets/cloud.svg)
   - [moon.svg](assets/mood.svg)
