@@ -55,3 +55,7 @@ See [ts-server](authorization/ts-server/README.md).
 ### Authorization Server with Python
 
 See [py-server](authorization/py-server/README.md).
+
+## LICENSE
+
+MIT
