@@ -1,0 +1,11 @@
+# ignore folders
+__pycache__/
+bin/
+dist/
+node_modules/
+obj/
+src/
+Tools/
+
+# ignore files
+uv.lock
