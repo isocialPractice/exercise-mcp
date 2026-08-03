@@ -83,7 +83,7 @@ new-item <server>.py
 1. Use `uv`
 
 <!-- ```
-(markedPages.index)=> {
+(markedPages.index, add.mdx.langTabSelect)=> {
     <CodeGroup>
       ```bash macOS/Linux theme={null}
       curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -105,7 +105,7 @@ Restart the terminal.
 2. Project setup
 
 <!-- ```
-(markedPages.index)=> {
+(markedPages.index, add.mdx.langTabSelect)=> {
     <CodeGroup>
       ```bash macOS/Linux theme={null}
       # Create a new directory for our project
@@ -163,30 +163,76 @@ new-item weather-server.py
 The project setup is deliberately different. Instead of one `<server>.py` file,
 this server will have:
 
-- [Entry](main.py): `main.py`
-- [Helper functions](utils): `utils/`
-  - [make_nws_request.py](utils/make_nws_request.py)
-  - [dormat_alert.py](utils/format_alert.py)
-  - [categorize_local_weather.py](utils/categorize_local_weather.py): Summary
-   for GUI instance of server, so weather will change display according to:
-    - Hot, Mediumm, or Cold
-      - Cold: **temp. < 32°F(0°C)**
-      - Medium: **temp. > `cold` && temp. < 80°F(26.67°C)**
-      - Hot: **temp. >= 80°F(26.67°C)**
-      - Each determins effect for `["stormy", "cloudy", "sunny"]`
-    - Stormy, Cloudy, or Sunny
-      - If stormy or cloudy, then:
-        - If stromy, then more precipitation; else less precipitation
-        - If cold, then snow; else rain
-        - If medium or hot, then:
-          - Medium: more gray toned
-          - Hot: more dark toned
-- [GUI rendering](gui): `gui/`
-  - [render_weather.py](gui/render_weather.py)
-- [GUI Graphics](assets): `assets/`
-  - [cloud.svg](assets/cloud.svg)
-  - [sun.svg](assets/sun.svg)
-  - [precipitation.svg](assets/precipitation.svg)
+- Entry: `server.py`
+- Helper functions: `utils/`
+  - `make_nws_request.py`
+  - `dormat_alert.py`
+  - `categorize_local_weather.py`
+    - Summary: for GUI instance of server, so weather will change display according to:
+      - Hot, Mediumm, or Cold
+        - Cold: **temp. < 32°F(0°C)**
+        - Medium: **temp. > `cold` && temp. < 80°F(26.67°C)**
+        - Hot: **temp. >= 80°F(26.67°C)**
+        - Each determins effect for `["stormy", "cloudy", "sunny"]`
+      - Stormy, Cloudy, or Sunny
+        - If stormy or cloudy, then:
+          - If stromy, then more precipitation; else less precipitation
+          - If cold, then snow; else rain
+          - If medium or hot, then:
+            - Medium: more gray toned
+            - Hot: more dark toned
+- GUI rendering: `gui/`
+  - `render_weather.py`
+- GUI Graphics: `assets/`
+  - `cloud.svg`
+  - `sun.svg`
+  - `precipitation.svg`
+
+## Add Server
+
+**Claude Desktop**
+
+<!-- ```
+(markedPages.index, add.mdx.langTabSelect)=> {
+    <CodeGroup>
+      ```json macOS/Linux theme={null}
+      "weather-server-gui": {
+        "command": "uv",
+        "args": [
+          "--directory",
+          "/PATH/TO/weather-server",
+          "run",
+          "server.py"
+        ]
+      }
+      ```
+
+      ```json Windows theme={null}
+      "weather-server-gui": {
+        "command": "uv",
+        "args": [
+          "--directory",
+          "D:\\Users\\name\\path\\to\\weather-server",
+          "run",
+          "server.py"
+        ]
+      }
+      ```
+    </CodeGroup>
+}
+``` -->
+
+```json
+    "weather-server-gui": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "D:\\Users\\name\\path\\to\\weather-server",
+        "run",
+        "server.py"
+      ]
+    }
+```
 
 ## Additionally
 

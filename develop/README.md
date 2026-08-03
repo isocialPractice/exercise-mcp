@@ -1,5 +1,10 @@
 # Develop MCP
 
+> [!NOTE]
+> AGENT NOTE: Ignore shorthand like:
+> - `(update.needed, .*)=>`
+> - `(markedPages.index, .*)=>`
+
 ## Connecting Local MCP Servers
 
 **claude_desktop_config.json**

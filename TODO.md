@@ -1,5 +1,10 @@
 # `exercise-mcp` TODO
 
+> [!NOTE]
+> AGENT NOTE: Ignore shorthand like:
+> - `(update.needed, .*)=>`
+> - `(markedPages.index, .*)=>`
+
 ## Current
 
 - [ ] Make minor variation of weather example from
@@ -24,7 +29,8 @@
 
 ## Next
 
-- [ ] Variation, but output Grease songs from prompt keywords
+- [ ] Variation, but style format responses in rythmic style of popular
+ broadway songs, depending on how the current weather forecast is returned
 
 ## Finalize
 
@@ -32,7 +38,7 @@
 - [ ] Plug into [practicing.xyz](https://practicing.xyz)
   - [ ] Use [markedPages](https://github.com/jhauga/markedPages)
     - Improve from here
-      - **Shorthand**: `(markedPages.index)=>{<prompt>}`
+      - **Shorthand**: `(markedPages.index, add.mdx.langTabSelect)=>{<prompt>}`
     - Plug improvements back in
 
 ## Complete

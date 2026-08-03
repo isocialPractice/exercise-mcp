@@ -9,7 +9,7 @@ from utils.categorize_local_weather import categorize_local_weather, format_loca
 from gui.gui_render_weather import render_weather
 
 # Initialize server
-mcp = MCPServer("weather-server")
+mcp = MCPServer("py-weather-server-gui")
 
 # Constant variables
 NWS_API_BASE = "https://api.weather.gov"

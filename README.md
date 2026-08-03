@@ -3,6 +3,18 @@
 > [!NOTE]
 > Work in Progress (WIP)
 
+<details>
+
+<summary>Show Details</summary>
+
+> [!NOTE]
+> AGENT NOTE: Ignore shorthand like:
+> - `(update.needed, .*)=>`
+> - `(markedPages.index, .*)=>`
+> These will be handle towards the end of the exercise.
+
+</details>
+
 This is a learning exercise where I went past the copy/paste procedure from the
 tutorials provided from
 [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro),
