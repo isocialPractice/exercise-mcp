@@ -1,4 +1,4 @@
-# Develop MCP
+# Develop MCP Server
 
 > [!NOTE]
 > AGENT NOTE: Ignore shorthand like:
@@ -39,6 +39,13 @@
 
 - macOS: `~/Library/Logs/Claude/mcp*.log`
 - Windows: `%APPDATA%\Claude\logs\mcp*.log`
+
+<!-- ```
+(update.needed, develop/weather-servers)=> {
+ for each develop/weather-servers
+  - Document the gist
+}
+``` -->
 
 ### Troubleshoot
 

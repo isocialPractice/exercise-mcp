@@ -2,7 +2,7 @@
 rem buildExercise
 ::  Script for exercise, making a simple MCP server as hard as possible for learning purposes.
 
-:; Global variables.
+:: Global variables.
 set "_parOneBuildExercise=%~1"
 set "_checkParOneBuildExercise=-%_parOneBuildExercise%-"
 
@@ -93,6 +93,7 @@ goto:eof
   call :_main 1 helper-file UTILS-FORMAT-ALERT "utils\format_alert.py"
   call :_main 1 helper-file CATEGORIZE-LOCAL-WEATHER "utils\categorize_local_weather.py"
   call :_main 1 helper-file GUI-RENDER-WEATHER "gui\gui_render_weather.py"
+  call :_main 1 helper-file GUI-DRAW-WEATHER "gui\gui_draw_weather.py"
   call :_main 1 server-file SERVER "server.py"
   if EXIST "%~dp0weather-server\build_source.data.txt" del /Q "%~dp0weather-server\build_source.data.txt" >nul 2>nul
   call :_runBuildExercise 2 & goto:eof

@@ -86,29 +86,39 @@ run. The project structure is generated from `build_source.data.txt` by the
 > The build script uses `sed`. On Windows, ensure a `sed` binary is on `PATH`
 > (for example via [Cygwin](https://www.cygwin.com/)).
 
-**Windows**
+<!-- ```
+(markedPages.index, add.mdx.langCodeGroupSelect)=> {
+
+    <CodeGroup>
+      ```bash macOS/Linux theme={null}
+
+      # Enusre to change to this folder.
+      cd authorization/<server-folder>
+      # Run the script
+      ./buildExercise.sh --build
+      ```
+
+      ```powershell Windows theme={null}
+      :: Enusre to change to this folder.
+      cd authorization\<server-folder>
+      :: Run the script
+      buildExercise.bat --build
+      ```
+}
+``` -->
 
 ```batch
 :: Ensure you change to this folder.
-cd authorization\csharp-server
+cd authorization\<server-folder>
 :: Run the script (generates files, runs `dotnet run`, starts the server)
 buildExercise.bat --build
-```
-
-**Linux**
-
-```bash
-# Ensure you change to this folder.
-cd authorization/csharp-server
-# Run the script (generates files, runs `dotnet run`, starts the server)
-./buildExercise.sh --build
 ```
 
 Use `--reset` to remove all generated files and return `csharp-server` to its
 original state:
 
 ```batch
-buildExercise.bat --reset
+buildExercise --reset
 ```
 
 ### Configuration (no `.env` file)
@@ -123,16 +133,8 @@ Keycloak introspection endpoint.
 The `buildExercise --build` step already starts the server. To build and run it
 manually:
 
-### Windows
-
-```batch
-dotnet run --framework net9.0
-```
-
-### Linux
-
 ```bash
-dotnet run --framework net10.0
+dotnet run
 ```
 
 A healthy server answers an unauthenticated request with `401` (it is up and

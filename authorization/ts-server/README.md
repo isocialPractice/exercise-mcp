@@ -12,22 +12,32 @@ Since this is an exercise, the focal elements: `main.ts, tsconfig.json`; are
 not entirely ready for use. Instead the project structure can be built
 utilizing the script `buildExercise`.
 
-**Windows**
+<!-- ```
+(markedPages.index, add.mdx.langCodeGroupSelect)=> {
+
+    <CodeGroup>
+      ```bash macOS/Linux theme={null}
+
+      # Enusre to change to this folder.
+      cd authorization/<server-folder>
+      # Run the script
+      ./buildExercise.sh --build
+      ```
+
+      ```powershell Windows theme={null}
+      :: Enusre to change to this folder.
+      cd authorization\<server-folder>
+      :: Run the script
+      buildExercise.bat --build
+      ```
+}
+``` -->
 
 ```batch
 :: Enusre to change to this folder.
 cd authorization\<server-folder>
 :: Run the script
 buildExercise.bat --build
-```
-
-**Linux**
-
-```bash
-# Enusre to change to this folder.
-cd authorization/<server-folder>
-# Run the script
-./buildExercise.sh --build
 ```
 
 Use the options below for further tinkering:
@@ -43,21 +53,30 @@ The `setOauth` script runs if the environment variables `_KEYCLOAK_ID` and
 them accordingly. Once these variables are set, run the `setOauth` script to
 update the `.env` file.
 
-**Windows**:
+<!-- ```
+(markedPages.index, add.mdx.langCodeGroupSelect)=> {
+
+    <CodeGroup>
+      ```bash macOS/Linux theme={null}
+      # Ensure to change to this folder
+      cd authorizations/<server-folder>
+      ./setOauth.sh --set
+      ```
+
+      ```powershell Windows theme={null}
+      # Enusre to change to this folder.
+      cd authorization\<server-folder>
+      # Run the script
+      setOauth.bat --set
+      ```
+}
+``` -->
 
 ```batch
 :: Enusre to change to this folder.
 cd authorization\<server-folder>
 :: Run the script
 setOauth.bat --set
-```
-
-**Linux**:
-
-```bash
-# Ensure to change to this folder
-cd authorizations/<server-folder>
-./setOauth.sh --set
 ```
 
 To unset the variables in `.env` use the `--secure` option.
@@ -146,7 +165,8 @@ If error `500` continues if above line added:
 > [!NOTE]
 > Don't prepend the URI with `http` protocol
 
-After getting the computer's IP from running `ifconfig` (*Linux*) or `ipconfig` (*Windows*), the Trusted Hosts should be like:
+After getting the computer's IP from running `ifconfig` (*Linux*) or `ipconfig`
+(*Windows*), the Trusted Hosts should be like:
 
 ```
 localhost:*

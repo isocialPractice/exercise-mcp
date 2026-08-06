@@ -28,22 +28,32 @@ run. The project structure is generated from `build_source.data.txt` by the
 > The build script uses `sed`. On Windows, ensure a `sed` binary is on `PATH`
 > (for example via [Cygwin](https://www.cygwin.com/)).
 
-**Windows**
+<!-- ```
+(markedPages.index, add.mdx.langCodeGroupSelect)=> {
+
+    <CodeGroup>
+      ```bash macOS/Linux theme={null}
+
+      # Enusre to change to this folder.
+      cd authorization/<server-folder>
+      # Run the script
+      ./buildExercise.sh --build
+      ```
+
+      ```powershell Windows theme={null}
+      :: Enusre to change to this folder.
+      cd authorization\<server-folder>
+      :: Run the script
+      buildExercise.bat --build
+      ```
+}
+``` -->
 
 ```batch
 :: Ensure you change to this folder.
-cd authorization\py-server
+cd authorization\<server-folder>
 :: Run the script (generates files, runs `uv sync`, starts the server)
 buildExercise.bat --build
-```
-
-**Linux**
-
-```bash
-# Ensure you change to this folder.
-cd authorization/py-server
-# Run the script (generates files, runs `uv sync`, starts the server)
-./buildExercise.sh --build
 ```
 
 Use `--reset` to remove all generated files and return `py-server` to its

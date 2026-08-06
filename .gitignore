@@ -6,6 +6,8 @@ node_modules/
 obj/
 src/
 Tools/
+weather-client/
+weather-server/
 
 # ignore files
 uv.lock

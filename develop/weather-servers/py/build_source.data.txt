@@ -8,6 +8,7 @@ from utils.make_nws_request import make_nws_request
 from utils.format_alert import format_alert
 from utils.categorize_local_weather import categorize_local_weather, format_local_weather
 from gui.gui_render_weather import render_weather
+from gui.gui_draw_weather import draw_weather_svg
 
 # Initialize server
 mcp = MCPServer("weather-server")
@@ -17,9 +18,10 @@ NWS_API_BASE = "https://api.weather.gov"
 USER_AGENT = "weather-app/1.0"
 LOCAL_TIME_FORMAT = "%H:%M:%S"
 
-# render_weather is defined in gui/ so the module stays free of the server
-# instance, so expose it as a tool from here.
+# render_weather and draw_weather_svg are defined in gui/ so those modules stay
+# free of the server instance, so expose them as tools from here.
 mcp.tool()(render_weather)
+mcp.tool()(draw_weather_svg)
 
 
 def local_time() -> str:
@@ -311,3 +313,106 @@ async def render_weather(local_weather: dict, current_time) -> str:
 
     return server_prompt_output
 --END_GUI-RENDER-WEATHER--
+--START_GUI-DRAW-WEATHER--
+# Import dependencies
+from pathlib import Path
+
+# Day and night already have one definition in the render module, and both
+# modules ship in gui/, so reuse it rather than read the clock twice.
+from gui.gui_render_weather import DAY_END_HOUR, DAY_START_HOUR, _hour_of_day
+
+# Constant variables
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+DAY_ASSET = "sun.svg"
+NIGHT_ASSET = "moon.svg"
+CLOUD_ASSET = "cloud.svg"
+RAIN_ASSET = "rain.svg"
+SNOW_ASSET = "snow.svg"
+OVERCAST_STYLES = ("cloudy", "stormy")
+
+# Stand-in artwork for an asset the server does not ship, so the GUI always has
+# something to draw. Deliberately plain, since it only holds the place.
+MISSING_SVG = (
+    '<svg id="{name}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360">'
+    '<circle cx="180" cy="180" r="160" fill="#d2d2d2" stroke="#000" stroke-width="8"/>'
+    '<text x="180" y="196" fill="#000" font-family="sans-serif" font-size="44"'
+    ' text-anchor="middle">{label}</text>'
+    "</svg>"
+)
+
+# The server owns the MCPServer instance and registers this coroutine as a tool,
+# which keeps gui/ importable from server.py without a circular import.
+
+
+def _draw_set(local_weather: dict, day_or_night: str) -> list[str]:
+    """Return the assets the current weather calls for, in draw order."""
+    temperature_style = local_weather.get("Temperature", "medium")
+    precipe_style = local_weather.get("Precipitation", "sunny")
+
+    draw_set = [DAY_ASSET if day_or_night == "day" else NIGHT_ASSET]
+    if precipe_style in OVERCAST_STYLES:
+        draw_set.append(CLOUD_ASSET)
+        draw_set.append(SNOW_ASSET if temperature_style == "cold" else RAIN_ASSET)
+    return draw_set
+
+
+def _cliche_svg(asset: str) -> str:
+    """Draw the stand-in markup for an asset the server is missing."""
+    name = Path(asset).stem
+    return MISSING_SVG.format(name=name, label=name.upper())
+
+
+async def draw_weather_svg(local_weather: dict, current_time) -> str:
+    """Draw the SVG set for the current weather, as directives for the GUI app.
+
+       Each asset the server ships is drawn from disk. Any asset it does not
+       ship is drawn as a plain stand-in instead, so the draw set is never
+       short. When the server ships no asset at all, the directives ask for the
+       artwork to be generated rather than copied.
+
+       Args:
+           local_weather: temperature, precipitation
+           current_time: local time of day
+    """
+    hour = _hour_of_day(current_time)
+    day_or_night = "day" if DAY_START_HOUR <= hour < DAY_END_HOUR else "night"
+    draw_set = _draw_set(local_weather, day_or_night)
+
+    available = []
+    missing = []
+    for asset in draw_set:
+        path = ASSETS_DIR / asset
+        if path.is_file():
+            available.append(f"   - {asset}: {path}")
+        else:
+            missing.append(f"   - {asset}:\n     {_cliche_svg(asset)}")
+
+    # Nothing on disk to draw from, so the artwork has to be generated.
+    if not available:
+        return f"""
+- Draw SVG Set: {", ".join(draw_set)}
+- Generate SVG:
+   - The server ships no asset for the current weather, so generate one SVG per
+     name in the draw set
+   - Match each one to the styling the GUI application already uses
+   - Keep every viewBox square and the markup self contained, with no external
+     references
+"""
+
+    server_prompt_output = [f"- Draw SVG Set: {', '.join(draw_set)}"]
+    server_prompt_output += ["- Draw From Server Assets:", *available]
+    if missing:
+        server_prompt_output += ["- Draw Stand-In, Server Ships No Asset:", *missing]
+    server_prompt_output += [
+        "- Add SVG Tool:",
+        "   - For each language the GUI application is written in:",
+        "     - Read the application and find the style pattern it already uses",
+        "     - Add one lightweight SVG helper built on that style pattern:",
+        "       - if the application groups behavior in classes, add a method",
+        "       - else add a function",
+        "     - The helper takes a name from the draw set and returns its markup",
+        "   - Add no dependency, the helper stays lightweight",
+    ]
+
+    return "\n" + "\n".join(server_prompt_output) + "\n"
+--END_GUI-DRAW-WEATHER--

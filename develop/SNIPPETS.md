@@ -33,7 +33,11 @@ this server will have:
 ```
 (draw_weather.lang-extension)=> shorthand drawsSvg() {
   adds.svgTool(drawWeatherSVG, use.currentWeather(()=> {if asset.svg not in currentWeather, then draw cliche(weather.missingSVG);}))=> {
-    for.each(language.server()-> add lightweight.svgTool(styles: app): [method, function] { get(guiApp).find(style.pattern); make.svgTool(base.onStylePattern())})
+    if (currentWeather.draw(this.svg)) {
+      for.each(language.server()-> add lightweight.svgTool(styles: app): [method, function] { get(guiApp).find(style.pattern); make.svgTool(base.onStylePattern())})
+    } else {
+      ask.model(generate.svg());
+    }
   }
 }
 ```

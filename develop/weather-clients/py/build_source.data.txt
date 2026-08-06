@@ -1,0 +1,475 @@
+--START_CLIENT--
+# Setup imports and other pieces the client shares:
+###############################################################################
+import asyncio
+import os
+import shutil
+import sys
+from contextlib import AsyncExitStack
+from typing import Any
+
+from mcp import Client, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from mcp_types import TextContent
+
+from anthropic import Anthropic
+from dotenv import load_dotenv
+
+load_dotenv()  # load environment variables from .env
+
+MODEL = "claude-sonnet-4-5"
+MAX_TOKENS = 16000
+MAX_TOOL_ROUNDS = 25
+FILESYSTEM_LABEL = "file-system"
+FILESYSTEM_PACKAGE = "@modelcontextprotocol/server-filesystem"
+FILESYSTEM_ROOTS_VAR = "FILESYSTEM_MCP_ROOTS"
+ACCESS_TOOL_NAME = "request_directory_access"
+anthropic = Anthropic()
+
+SYSTEM_PROMPT = """You are driving MCP tools on the machine of the person you are talking to.
+
+File system access is limited to a list of allowed directories, and that list can be added to while
+you work. The moment a path is refused, or the moment the person names a directory you cannot reach,
+call request_directory_access with that path and then retry what failed.
+
+Never answer a refused path with a numbered list of choices, and never tell the person to edit a
+configuration file, restart the client, or rerun the request from somewhere else. Asking for the
+directory is your job and this client carries it out. Only stop and explain if the request is
+declined, and then say which path was declined."""
+
+ACCESS_TOOL = {
+    "name": ACCESS_TOOL_NAME,
+    "description": (
+        "Ask for file system access to a directory that is outside the currently allowed ones. "
+        "The person running the client approves or declines it. On approval the directory is open "
+        "to every file system tool straight away, so retry the call that was refused."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Absolute path of the directory to open up"
+            },
+            "reason": {
+                "type": "string",
+                "description": "One line on what you need the directory for"
+            }
+        },
+        "required": ["path"]
+    }
+}
+###############################################################################
+# Client is the single object your program talks to the server through. Listing
+# the tools, calling one, reading a resource: each of those is a method on it.
+#
+# One Client speaks to one server, so a client that needs weather tools and file
+# system tools opens one per server. The model is handed a single merged tool
+# set and never learns which server sits behind which tool, so the client keeps
+# that mapping and routes each call itself.
+#
+# request_directory_access is the one tool with no server behind it. The client
+# answers that one itself, which is what turns a refused path from the end of
+# the conversation into one more step in it.
+###############################################################################
+
+# Work out the process to launch for a server script:
+###############################################################################
+def server_params(server_script_path: str) -> StdioServerParameters:
+    """Describe the subprocess that runs an MCP server
+
+    Args:
+        server_script_path: Path to the server script (.py or .js)
+    """
+    if server_script_path.endswith(".py"):
+        command = "python"
+    elif server_script_path.endswith(".js"):
+        command = "node"
+    else:
+        raise ValueError("Server script must be a .py or .js file")
+
+    return StdioServerParameters(command=command, args=[server_script_path])
+
+
+def server_label(server_script_path: str) -> str:
+    """Name a server after the folder holding its script, so output reads clearly."""
+    return os.path.basename(os.path.dirname(os.path.abspath(server_script_path))) or server_script_path
+
+
+def filesystem_roots() -> list[str]:
+    """Return the directories the file system server starts out allowed to reach.
+
+    Set FILESYSTEM_MCP_ROOTS to a list separated the way the platform separates
+    PATH entries. With nothing set the client offers only the current directory,
+    which keeps a first run from handing out the whole drive.
+    """
+    configured = os.environ.get(FILESYSTEM_ROOTS_VAR, "")
+    roots = [root.strip() for root in configured.split(os.pathsep) if root.strip()]
+    return [os.path.abspath(root) for root in roots] or [os.getcwd()]
+
+
+def filesystem_server_params(npx: str, roots: list[str]) -> StdioServerParameters:
+    """Describe the subprocess that runs the file system server.
+
+    Args:
+        npx: Path to the npx executable
+        roots: Directories the server may read and write
+    """
+    return StdioServerParameters(command=npx, args=["-y", FILESYSTEM_PACKAGE, *roots])
+
+
+def covered_by(roots: list[str], path: str) -> bool:
+    """Report whether one of the allowed directories already contains a path."""
+    for root in roots:
+        try:
+            if os.path.commonpath([root, path]) == root:
+                return True
+        except ValueError:
+            continue  # different drives have no common path at all
+    return False
+###############################################################################
+# StdioServerParameters is configuration, not a connection. stdio_client()
+# turns it into a stdio transport, and Client opens that transport when you
+# enter its async with block. We’ll do both in main()
+#
+# The file system server ships as a node package instead of a script, so it
+# launches through npx rather than server_params. Its roots are command line
+# arguments, and it refuses any path outside them, so that list is the whole of
+# the client's access control.
+###############################################################################
+
+# Hold the state one chat session runs on:
+###############################################################################
+async def connect(stack: AsyncExitStack, params: StdioServerParameters) -> Client:
+    """Open one server connection and hold it open for the life of the stack."""
+    return await stack.enter_async_context(Client(stdio_client(params)))
+
+
+class Session:
+    """The merged tool set, the routing table, and the directories on offer.
+
+    Args:
+        npx: Path to the npx executable, or None when npx is not installed
+        roots: Directories the file system server may reach at startup
+    """
+
+    def __init__(self, npx: str | None, roots: list[str]) -> None:
+        self.npx = npx
+        self.roots = roots
+        self.available_tools: list[dict[str, Any]] = []
+        self.owner_of: dict[str, Client] = {}
+        self.filesystem_tools: list[str] = []
+        self._filesystem_stack: AsyncExitStack | None = None
+
+    async def register(self, label: str, client: Client) -> list[str]:
+        """Add one server's tools to the merged set and say which were taken."""
+        tool_list = await client.list_tools()
+        connected = []
+        for tool in tool_list.tools:
+            # Tool names have to be unique across the merged set, so the first
+            # server to claim a name keeps it and the later one is left out.
+            if tool.name in self.owner_of or tool.name == ACCESS_TOOL_NAME:
+                print(f"Skipping duplicate tool from {label}: {tool.name}")
+                continue
+
+            self.owner_of[tool.name] = client
+            self.available_tools.append({
+                "name": tool.name,
+                "description": tool.description,
+                "input_schema": tool.input_schema
+            })
+            connected.append(tool.name)
+
+        print(f"Connected to {label} with tools: {connected}")
+        return connected
+
+    async def open_filesystem(self) -> None:
+        """Launch the file system server against the current roots.
+
+        The first launch registers its tools and the access tool alongside them.
+        Later launches reuse both, because a change of roots changes what the
+        server will reach and not what it can do.
+        """
+        if self.npx is None:
+            return
+
+        # close_filesystem() has already cleared the stack by the time a relaunch
+        # gets here, so the tool list is what says whether this is the first one.
+        first_launch = not self.filesystem_tools
+        stack = AsyncExitStack()
+        client = await stack.enter_async_context(
+            Client(stdio_client(filesystem_server_params(self.npx, self.roots)))
+        )
+        self._filesystem_stack = stack
+
+        print(f"Rooted {FILESYSTEM_LABEL} at: {self.roots}")
+        if first_launch:
+            self.filesystem_tools = await self.register(FILESYSTEM_LABEL, client)
+            self.available_tools.append(ACCESS_TOOL)
+        else:
+            for name in self.filesystem_tools:
+                self.owner_of[name] = client
+
+    async def close_filesystem(self) -> None:
+        """Shut the file system server down and forget the connection."""
+        if self._filesystem_stack is None:
+            return
+
+        stack, self._filesystem_stack = self._filesystem_stack, None
+        await stack.aclose()
+
+    async def grant_access(self, path: str) -> str:
+        """Add a directory to the allowed set and relaunch the server on it.
+
+        Args:
+            path: Directory to open up, absolute or relative to the working directory
+
+        Returns:
+            A line to show for what happened, either way
+        """
+        resolved = os.path.abspath(os.path.expanduser(path.strip().strip('"').strip("'")))
+        if os.path.isfile(resolved):
+            resolved = os.path.dirname(resolved)  # a file is reachable through its folder
+
+        if self.npx is None:
+            return f"There is no file system server running, so {resolved} cannot be opened up."
+        if not os.path.isdir(resolved):
+            return f"No directory exists at {resolved}, so nothing was opened up."
+        if covered_by(self.roots, resolved):
+            return f"{resolved} is already inside the allowed directories."
+
+        self.roots.append(resolved)
+        await self.close_filesystem()
+        await self.open_filesystem()
+        return f"Opened up {resolved}. The file system tools can reach it now."
+
+    async def call_tool(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+        """Run one tool, on the server that owns it or on the client itself.
+
+        Args:
+            name: Tool the model asked for
+            args: Arguments the model supplied
+
+        Returns:
+            The text of the result, and whether to report it to the model as an error
+        """
+        if name == ACCESS_TOOL_NAME:
+            return await self.ask_for_access(args)
+
+        client = self.owner_of.get(name)
+        if client is None:
+            return f"No connected server provides a tool named {name}.", True
+
+        try:
+            result = await client.call_tool(name, args)
+        except Exception as exc:
+            # A server that dies mid-session would otherwise end the chat loop, so
+            # report it as a failed tool call and let the model decide what to do.
+            return f"Calling {name} failed: {exc}", True
+
+        text = "\n".join(
+            block.text
+            for block in result.content
+            if isinstance(block, TextContent)
+        )
+        return text, bool(result.is_error)
+
+    async def ask_for_access(self, args: dict[str, Any]) -> tuple[str, bool]:
+        """Put the model's request for a directory to the person running the client."""
+        path = str(args.get("path", "")).strip()
+        if not path:
+            return "A path is needed to open up a directory.", True
+
+        resolved = os.path.abspath(os.path.expanduser(path.strip('"').strip("'")))
+        if covered_by(self.roots, resolved):
+            return f"{resolved} is already inside the allowed directories.", False
+
+        reason = str(args.get("reason", "")).strip()
+        print(f"\nThe model is asking for file system access to: {resolved}")
+        if reason:
+            print(f"  Reason given: {reason}")
+
+        answer = (await asyncio.to_thread(input, "Allow it? [y/N] ")).strip().lower()
+        if answer not in ("y", "yes"):
+            return f"Access to {resolved} was declined. Do not ask for it again this session.", True
+
+        granted = await self.grant_access(resolved)
+        return granted, not granted.startswith("Opened up")
+###############################################################################
+# The roots the file system server honours are the ones it was launched with,
+# so opening up a directory means launching it again. MCP does carry a roots
+# capability for exactly this, but it is deprecated as of 2026-07-28 and the
+# change notification has nothing acting on it yet, so a relaunch is the honest
+# way to do it. The server keeps its own AsyncExitStack for that reason: closing
+# that one stack stops only the file system server and leaves every other
+# connection running.
+###############################################################################
+
+# Add core functionality for query processing and tool handling:
+###############################################################################
+async def process_query(session: Session, query: str) -> str:
+    """Process a query using Claude and available tools"""
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "user",
+            "content": query
+        }
+    ]
+    final_text = []
+
+    for _ in range(MAX_TOOL_ROUNDS):
+        response = anthropic.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+            tools=session.available_tools
+        )
+
+        # The whole response goes back into the history, so the next request
+        # continues this turn instead of starting a new one.
+        messages.append({"role": "assistant", "content": response.content})
+
+        tool_uses = []
+        for content in response.content:
+            if content.type == 'text':
+                final_text.append(content.text)
+            elif content.type == 'tool_use':
+                final_text.append(f"[Calling tool {content.name} with args {content.input}]")
+                tool_uses.append(content)
+
+        if tool_uses:
+            tool_results = []
+            for tool_use in tool_uses:
+                text, is_error = await session.call_tool(tool_use.name, tool_use.input)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_use.id,
+                    "content": text,
+                    "is_error": is_error
+                })
+
+            # Every result of a turn goes back in one message, so the model keeps
+            # asking for tools in parallel rather than one at a time.
+            messages.append({"role": "user", "content": tool_results})
+            continue
+
+        # A server side tool ran out of its own turn, so send the history back
+        # and the model picks up where it stopped.
+        if response.stop_reason == "pause_turn":
+            continue
+
+        break
+    else:
+        final_text.append(f"[Stopped after {MAX_TOOL_ROUNDS} rounds of tool calls]")
+
+    return "\n".join(final_text)
+###############################################################################
+# call_tool returns a CallToolResult. Its content is a list of blocks, which is why
+# we narrow to TextContent before reading .text. A tool that raises does not raise
+# here: it answers with is_error set, and passing that flag on lets Claude read the
+# message and try something else.
+#
+# The loop is what makes the client agentic. One request and one reply answers a
+# question about the weather, but finding a repository and then changing it takes
+# a run of tool calls, each one chosen from what the last one returned. So the
+# client keeps answering tool calls until the model stops asking, and
+# MAX_TOOL_ROUNDS is there to stop a model that never does.
+#
+# A refused path used to end that run: the model had nothing to call, so it wrote
+# out a list of things the person could go and do instead. The access tool and
+# the system prompt together replace that with one more round of tool calls.
+###############################################################################
+
+# Adding the chat loop
+###############################################################################
+async def chat_loop(session: Session) -> None:
+    """Run an interactive chat loop"""
+    print("\nMCP Client Started!")
+    print("Type your queries, '/allow <path>' to open up a directory, or 'quit' to exit.")
+
+    while True:
+        try:
+            query = (await asyncio.to_thread(input, "\nQuery: ")).strip()
+        except EOFError:
+            break
+
+        if query.lower() == 'quit':
+            break
+
+        # Opening up a directory is the person's call, so it is a command here
+        # rather than something to ask the model for.
+        if query.lower().startswith("/allow"):
+            print(await session.grant_access(query[len("/allow"):]))
+            continue
+
+        if query.lower() == "/roots":
+            print(f"Allowed directories: {session.roots}")
+            continue
+
+        try:
+            response = await process_query(session, query)
+            print("\n" + response)
+        except Exception as e:
+            print(f"\nError: {e}")
+###############################################################################
+# The input() blocks, so it runs on a worker thread. That keeps the event loop
+# free to service the connection while you type. The approval question for the
+# access tool goes through the same worker thread, in the middle of a turn.
+###############################################################################
+
+# Finally, we’ll add the main execution logic:
+###############################################################################
+async def main() -> None:
+    if len(sys.argv) < 2:
+        print("Usage: python client.py <path_to_server_script> [<path_to_server_script> ...]")
+        sys.exit(1)
+
+    npx = shutil.which("npx")
+    session = Session(npx, filesystem_roots())
+
+    async with AsyncExitStack() as stack:
+        for server_script_path in sys.argv[1:]:
+            client = await connect(stack, server_params(server_script_path))
+            await session.register(server_label(server_script_path), client)
+
+        if npx is None:
+            print(f"Skipping {FILESYSTEM_LABEL}: npx is not on PATH, so the node server cannot start.")
+        else:
+            # The file system server is relaunched whenever its roots change, so
+            # the outer stack only has to make sure the last one is shut down.
+            stack.push_async_callback(session.close_filesystem)
+            await session.open_filesystem()
+
+        await chat_loop(session)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+###############################################################################
+# That async with is the entire connection lifecycle. Entering it launches the
+# server and agrees a protocol version with it; leaving it disconnects and shuts
+# the subprocess down. There is nothing to close by hand.
+#
+# Every server script named on the command line is launched, and the file system
+# server is added on top of them, so a weather question and a question about a
+# repository on disk are both answerable in the same session:
+#
+#   uv run client.py ../../../weather-servers/py/weather-server/server.py
+#
+# The file system server starts out seeing the directory the client was started
+# from. Name the directories worth reaching up front:
+#
+#   set FILESYSTEM_MCP_ROOTS=C:\Users\<user>\Documents\GitHub
+#
+# Anything missed can be opened up mid session, either by asking directly:
+#
+#   Query: /allow C:\Users\<user>\Documents\GitHub\sample-app
+#
+# or by letting the model ask for it the moment it needs it, which it will do
+# rather than telling you to restart the client.
+#
+# You can find the complete client.py file at:
+# https://github.com/modelcontextprotocol/quickstart-resources/blob/main/mcp-client-python/client.py
+###############################################################################
+--END_CLIENT--
