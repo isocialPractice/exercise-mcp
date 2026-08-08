@@ -1,0 +1,19 @@
+<svg id="curtain" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300">
+  <rect x="0" y="0" width="480" height="300" fill="#120a1e"/>
+  <rect x="0" y="0" width="480" height="46" fill="#7a1023"/>
+  <path d="M0 46 Q60 96 120 46 Q180 96 240 46 Q300 96 360 46 Q420 96 480 46 L480 0 L0 0 Z" fill="#9c1b32"/>
+  <g fill="#9c1b32">
+    <path d="M0 40 Q30 170 12 300 L96 300 Q66 170 92 40 Z"/>
+    <path d="M92 40 Q118 180 100 300 L168 300 Q150 180 164 40 Z"/>
+    <path d="M480 40 Q450 170 468 300 L384 300 Q414 170 388 40 Z"/>
+    <path d="M388 40 Q362 180 380 300 L312 300 Q330 180 316 40 Z"/>
+  </g>
+  <g fill="#c1314b" opacity="0.55">
+    <path d="M20 44 Q44 170 30 300 L44 300 Q56 170 40 44 Z"/>
+    <path d="M120 44 Q140 180 128 300 L142 300 Q152 180 138 44 Z"/>
+    <path d="M460 44 Q436 170 450 300 L436 300 Q424 170 440 44 Z"/>
+    <path d="M360 44 Q340 180 352 300 L338 300 Q328 180 342 44 Z"/>
+  </g>
+  <text x="240" y="180" fill="#ffe28a" font-family="Georgia, serif" font-size="20"
+    text-anchor="middle" font-style="italic">tonight's forecast, in one act</text>
+</svg>

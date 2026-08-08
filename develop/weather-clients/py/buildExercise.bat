@@ -18,33 +18,30 @@ goto:eof
 
 :_main
  if "%1"=="1" (
-  if "%2"=="client-file" (
+  if "%2"=="helper-file" (
+   echo: & echo Creating Helper File:
+  ) else if "%2"=="client-file" (
    echo: & echo Creating 'client.py' File:
   ) else (
    echo Something unexpected happened
    goto _closeOut
   )
   echo *************************************************************************
-  type build_source.data.txt | sed -zE "s/.*--START_%3--(.*)--END_%3--.*/\1/" | sed 1d > %4
+  rem Run from the project folder, where the copied data file lives.
+  type build_source.data.txt | sed -zE "s/.*<!--START_%3-->\n[^\n]+\n(.*)\n```\n<!--END_%3-->.*/\1/" > %4
  )
 goto:eof
 
 :_run
  if "%1"=="1" (
-  echo Creating virtual environment and installing dependencies:
-  echo:
-  echo Virtual environment and activate it
-  uv venv
-  .venv\Scripts\activate
-  echo:
-  echo Install dependencies
-  uv add mcp anthropic python-dotenv
   echo Remove boilerplate files
   echo:
-  del main.py
-  echo Create our main file
+  if EXIST main.py del /Q main.py >nul 2>nul
+  echo Creating virtual environment and installing dependencies:
   echo:
-  new-item client.py
+  rem pyproject.toml already pins mcp, anthropic and python-dotenv, so sync
+  rem installs them instead of uv add rewriting the file that was just built.
+  uv sync
   echo:
   echo Running Client:
   if NOT EXIST "..\..\..\weather-servers\py\weather-server" (
@@ -63,8 +60,8 @@ goto:eof
     echo:
     if NOT EXIST "%~dp0weather-client" mkdir "%~dp0weather-client" >nul 2>nul
     uv init "%~dp0weather-client"
-    copy /Y "%~dp0build_source.data.txt" "%~dp0weather-client\build_source.data.txt"
-    copy /Y "%~dp0package.txt" "%~dp0weather-client\pyproject.toml"
+    copy /Y "%~dp0README.md" "%~dp0weather-client\build_source.data.txt"
+    rem copy /Y "%~dp0package.txt" "%~dp0weather-client\pyproject.toml"
     cd /D "%~dp0weather-client"
     call :_runBuildExercise 1 & goto:eof
    ) else if "%_parOneBuildExercise%"=="--reset" (
@@ -90,6 +87,7 @@ goto:eof
   echo Building Local MCP Client: & echo:
   rem build using parameters
   call :_main 1 client-file CLIENT "client.py"
+  call :_main 1 helper-file PYPROJECT "pyproject.toml"
   if EXIST "%~dp0weather-client\build_source.data.txt" del /Q "%~dp0weather-client\build_source.data.txt" >nul 2>nul
   call :_runBuildExercise 2 & goto:eof
  )
@@ -114,6 +112,9 @@ goto:eof
  cd ..\..\..
  if "%_parOneBuildExercise%"=="--build" (
   cd ..
+  rem reset the server and this client
+  call "%~dp0%~n0.bat" --reset
+  call develop\weather-servers\py\buildExercise.bat --reset
  )
  set _parOneBuildExercise=
 goto:eof

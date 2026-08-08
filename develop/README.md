@@ -32,20 +32,13 @@
 ```
 
 > [!NOTE]
-> If using Claude Desktop, always exit the application to restart. Dont't just
+> If using Claude Desktop, always exit the application to restart. Don't just
 > close the window.
 
 **Logs**
 
 - macOS: `~/Library/Logs/Claude/mcp*.log`
 - Windows: `%APPDATA%\Claude\logs\mcp*.log`
-
-<!-- ```
-(update.needed, develop/weather-servers)=> {
- for each develop/weather-servers
-  - Document the gist
-}
-``` -->
 
 ### Troubleshoot
 
@@ -79,8 +72,25 @@ of each one provided from the tutorial, and include one additional feature. The
 additional feature will be the same for each server. It is a GUI API call that
 can be plugged into HTML rendered applications.
 
-Each server will aslo be built from a script. This is to get a solid foundation
+Each server will also be built from a script. This is to get a solid foundation
 of the entire process.
+
+## The Exercises
+
+Both families build the same way: each language folder's README carries the
+full project inside `<!--START_X-->` fenced marker sections, and a
+`buildExercise.bat`/`.sh` pair extracts them into a working project
+(`--build`) or removes it (`--reset`). The shared design of each family is
+documented once in its folder README; language folders keep only their own
+specifics.
+
+- [weather-servers/](weather-servers/README.md) - one MCP weather server per
+  language. All expose the same four tools (`get_alerts`, `get_forecast`,
+  `render_weather`, `draw_weather_svg`) plus the GUI styling variation drawn
+  from shared SVG assets.
+- [weather-clients/](weather-clients/README.md) - one MCP client per
+  language. Each launches a built weather server over stdio and runs a chat
+  loop where an Anthropic model calls its tools (needs `ANTHROPIC_API_KEY`).
 
 ## Additionally
 

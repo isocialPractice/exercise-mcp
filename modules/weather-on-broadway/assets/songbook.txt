@@ -1,0 +1,63 @@
+# Weather on Broadway - Original Songbook
+#
+# Original pastiche numbers written for this exercise, one per weather mood.
+# Any resemblance to a real showtune is strictly rhythmic - no licensed
+# lyrics appear in this file.
+#
+# Format, parsed by src/songbook.ts:
+#   --SONG: <MOOD>--
+#   Title: <show title>
+#   Tempo: <how the pit plays it>
+#   Chorus:
+#   <chorus lines until the end marker>
+#   --END--
+
+--SONG: SUNNY--
+Title: Marquee Morning
+Tempo: up-tempo opener, 4/4 strut
+Chorus:
+Oh the sun is up on the marquee lights,
+Every cloud has cleared the wings,
+It's a gold-leaf, top-bill, opening-night
+Kind of day where the whole town sings!
+--END--
+
+--SONG: CLOUDY--
+Title: Gray Matinee
+Tempo: wistful waltz, 3/4
+Chorus:
+It's a gray matinee, pull the houselights low,
+Soft as velvet seats worn thin,
+There's a quiet kind of show in the overcast row
+When the clouds come shuffling in.
+--END--
+
+--SONG: STORMY--
+Title: Thunder on Forty-Second
+Tempo: dramatic act-one finale, 6/8
+Chorus:
+Thunder on Forty-Second, lightning off the fly rail,
+Rain across the footlights - hold your hats and hold the show!
+The percussion's in the heavens and the strings are in the gale,
+It's the loudest number this old street has ever known!
+--END--
+
+--SONG: SNOWY--
+Title: Powder and Footlights
+Tempo: gentle ballad, slow 4/4
+Chorus:
+Powder on the footlights, hush across the square,
+Every flake a spotlight drifting down,
+The city wears an encore of white upon the air,
+And the snow takes one more bow across the town.
+--END--
+
+--SONG: ALERT--
+Title: Hold the Curtain!
+Tempo: urgent ensemble number, cut time
+Chorus:
+Hold the curtain! Clear the stage!
+The weather's gone and stolen every scene!
+Read the playbill, heed the page -
+This bulletin's the biggest cue you've seen!
+--END--

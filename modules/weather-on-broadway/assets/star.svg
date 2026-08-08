@@ -1,0 +1,6 @@
+<svg id="star" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360">
+  <rect x="0" y="0" width="360" height="360" fill="#120a1e"/>
+  <polygon fill="#f2c94c" stroke="#ffe28a" stroke-width="6"
+    points="180,40 213,140 318,140 233,202 265,302 180,240 95,302 127,202 42,140 147,140"/>
+  <circle cx="180" cy="180" r="26" fill="#fff7d6"/>
+</svg>

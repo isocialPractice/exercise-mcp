@@ -12,19 +12,7 @@ goto:eof
 
 :_package
  if "%1"=="1" (
-  echo [project]> pyproject.toml
-  echo name ^= "weather-server">> pyproject.toml
-  echo version ^= "0.1.0">> pyproject.toml
-  echo description ^= "A simple MCP weather server that renders a GUI from local conditions">> pyproject.toml
-  echo requires-python ^= ">=3.10">> pyproject.toml
-  echo dependencies ^= [>> pyproject.toml
-  echo   "httpx2>=2.9",>> pyproject.toml
-  echo   "mcp>=2.0.0rc1",>> pyproject.toml
-  echo ]>> pyproject.toml
-  echo:>> pyproject.toml
-  rem Server runs as a script, so nothing is built or installed as a package.
-  echo [tool.uv]>> pyproject.toml
-  echo package ^= false>> pyproject.toml
+  call :_main 1 helper-file PYPROJECT "pyproject.toml"
  )
 goto:eof
 
@@ -39,7 +27,8 @@ goto:eof
    goto _closeOut
   )
   echo *************************************************************************
-  type build_source.data.txt | sed -zE "s/.*--START_%3--(.*)--END_%3--.*/\1/" | sed 1d > %4
+  rem Run from the project folder, where the copied data file lives.
+  type build_source.data.txt | sed -zE "s/.*<!--START_%3-->\n[^\n]+\n(.*)\n```\n<!--END_%3-->.*/\1/" > %4
  )
 goto:eof
 
@@ -60,7 +49,7 @@ goto:eof
     echo Creating server project
     echo:
     if NOT EXIST "%~dp0weather-server" mkdir "%~dp0weather-server" >nul 2>nul
-    copy /Y "%~dp0build_source.data.txt" "%~dp0weather-server\build_source.data.txt"
+    copy /Y "%~dp0README.md" "%~dp0weather-server\build_source.data.txt"
     cd /D "%~dp0weather-server"
     if NOT EXIST "%~dp0weather-server\assets" mkdir "%~dp0weather-server\assets" >nul 2>nul
     if NOT EXIST "%~dp0weather-server\gui"    mkdir "%~dp0weather-server\gui"    >nul 2>nul

@@ -1,0 +1,1145 @@
+<html lang="en">
+<head>
+ <link rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown.min.css"
+  crossorigin="anonymous" referrerpolicy="no-referrer"/>
+ <title>exercise-mcp Documentation</title>
+ <meta name="color-scheme" content="light">
+
+ <style>
+  /* Force light mode for all components */
+  :root {
+   color-scheme: light;
+  }
+
+  /* Override GitHub Markdown CSS to always use light mode */
+  @media (prefers-color-scheme: dark) {
+   .markdown-body,
+   .markdown-body * {
+    color-scheme: light !important;
+   }
+  }
+
+  /* Force light mode styles for markdown content */
+  .markdown-body {
+   background-color: #ffffff !important;
+   color: #1f2328 !important;
+   color-scheme: light !important;
+  }
+
+  /* Page submenu styling to match site design */
+  nav.page-nav {
+   position: fixed;
+   z-index: 100;
+   margin-bottom: 32px;
+   width: 100%;
+   left: 0px;
+   top: 0px;
+   background: linear-gradient(135deg, rgb(27, 45, 45) 0%, black 100%);
+   border-bottom: 2px solid #E1E4E8;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  nav.page-nav .nav-container {
+   max-width: 1400px;
+   margin: 0 auto;
+   padding: 0 24px;
+  }
+
+  .page-menu {
+   display: flex;
+   list-style: none;
+   gap: 8px;
+   margin: 0;
+   padding: 12px 0;
+   flex-wrap: wrap;
+  }
+
+  nav.page-nav div ul li {
+   margin-left: 20px;
+  }
+
+  .page-link {
+   display: inline-block;
+   padding: 8px 16px;
+   color: #f0f1f3;
+   text-decoration: none;
+   font-size: 14px;
+   font-weight: 500;
+   border-radius: 8px;
+   transition: all 0.2s ease;
+   border: 1px solid transparent;
+  }
+
+  .page-link:hover {
+   color: darkslategray;
+   background: rgba(245, 245, 245, 0.8);
+   border-color: rgba(0, 102, 204, 0.2);
+  }
+
+  .page-link.active {
+   color: darkslategray;
+   background: #f1f1f2;
+   font-weight: 600;
+   border-color: darkslategray;
+   box-shadow: 0 2px 4px rgba(0, 102, 204, 0.1);
+  }
+
+  /* Content container styling */
+  #content {
+   max-width: 1200px;
+   margin: 40px auto;
+   padding: 32px 24px;
+   background: #ffffff;
+   border-radius: 12px;
+   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  /* Additional markdown overrides for tables, code blocks, etc. */
+  .markdown-body table tr {
+   background-color: #ffffff !important;
+   border-top: 1px solid #d1d9e0 !important;
+  }
+
+  .markdown-body table tr:nth-child(2n) {
+   background-color: #f6f8fa !important;
+  }
+
+  .markdown-body code {
+   background-color: rgba(175, 184, 193, 0.2) !important;
+   color: #1f2328 !important;
+  }
+
+  .markdown-body pre {
+   background-color: #f6f8fa !important;
+  }
+
+  .markdown-body pre code {
+   background-color: transparent !important;
+   color: #1f2328 !important;
+  }
+
+  /* MDX tab groups: <Tabs>/<Tab title> and <CodeGroup> rendered like the
+     modelcontextprotocol.io tutorials. */
+  .mdx-tabs {
+   margin: 16px 0;
+  }
+
+  .mdx-tab-bar {
+   display: flex;
+   gap: 4px;
+   border-bottom: 2px solid #d1d9e0;
+   flex-wrap: wrap;
+  }
+
+  .mdx-tab-btn {
+   border: none;
+   background: none;
+   padding: 8px 14px;
+   font-size: 14px;
+   font-weight: 500;
+   color: #57606a;
+   cursor: pointer;
+   border-bottom: 2px solid transparent;
+   margin-bottom: -2px;
+  }
+
+  .mdx-tab-btn:hover {
+   color: #1f2328;
+  }
+
+  .mdx-tab-btn.active {
+   color: darkslategray;
+   border-bottom-color: darkslategray;
+   font-weight: 600;
+  }
+
+  .mdx-tab-panel {
+   display: none;
+  }
+
+  .mdx-tab-panel.active {
+   display: block;
+  }
+
+  .mdx-tab-panel > pre {
+   margin-top: 12px;
+  }
+
+  /* Dropdown menus for nested pages (menuStyle "default") */
+  .page-menu li.has-children {
+   position: relative;
+  }
+
+  .page-menu .dropdown {
+   display: none;
+   position: absolute;
+   top: 100%;
+   left: 0;
+   background: rgb(27, 45, 45);
+   border: 1px solid #E1E4E8;
+   border-radius: 8px;
+   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+   min-width: 230px;
+   padding: 8px 4px;
+   z-index: 200;
+  }
+
+  .page-menu li.has-children:hover > .dropdown,
+  .page-menu li.has-children.open > .dropdown {
+   display: block;
+  }
+
+  .dropdown ul {
+   list-style: none;
+   margin: 0;
+   padding: 0;
+  }
+
+  .dropdown .page-link,
+  .dropdown .page-label {
+   display: block;
+   padding: 6px 12px;
+  }
+
+  .dropdown .page-label {
+   color: #9fb3b3;
+   font-size: 12px;
+   text-transform: uppercase;
+   letter-spacing: 0.4px;
+  }
+
+  .dropdown .depth-2 { padding-left: 26px; }
+  .dropdown .depth-3 { padding-left: 42px; }
+
+  .menu-caret {
+   font-size: 10px;
+   margin-left: 6px;
+  }
+
+  /* Fixed side menu with nesting (menuStyle "side") */
+  nav.side-nav {
+   position: fixed;
+   top: 0;
+   left: 0;
+   bottom: 0;
+   width: 264px;
+   overflow-y: auto;
+   background: linear-gradient(160deg, rgb(27, 45, 45) 0%, black 100%);
+   padding: 20px 12px;
+   box-sizing: border-box;
+   z-index: 100;
+  }
+
+  .side-title {
+   display: block;
+   color: #f0f1f3;
+   font-weight: 700;
+   font-size: 16px;
+   padding: 4px 10px 14px;
+   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+   margin-bottom: 10px;
+  }
+
+  .side-menu,
+  .side-children {
+   list-style: none;
+   margin: 0;
+   padding: 0;
+  }
+
+  .side-children {
+   margin-left: 14px;
+   border-left: 1px solid rgba(255, 255, 255, 0.12);
+   padding-left: 6px;
+  }
+
+  .side-row {
+   display: flex;
+   align-items: center;
+  }
+
+  nav.side-nav .page-link,
+  nav.side-nav .page-label {
+   flex: 1;
+   display: block;
+   padding: 6px 10px;
+   color: #e6e9ec;
+   font-size: 14px;
+   border-radius: 6px;
+   border: none;
+   text-decoration: none;
+  }
+
+  nav.side-nav .page-label {
+   color: #9fb3b3;
+   cursor: default;
+  }
+
+  nav.side-nav .page-link:hover {
+   background: rgba(245, 245, 245, 0.12);
+   color: #ffffff;
+  }
+
+  nav.side-nav .page-link.active {
+   background: #f1f1f2;
+   color: darkslategray;
+   font-weight: 600;
+  }
+
+  .side-toggle {
+   background: none;
+   border: none;
+   color: #9fb3b3;
+   cursor: pointer;
+   font-size: 11px;
+   padding: 4px 6px;
+  }
+
+  li.side-collapsed > ul.side-children {
+   display: none;
+  }
+
+  body.side-layout #content {
+   margin: 40px 24px 40px 292px;
+   max-width: none;
+  }
+
+  @media (max-width: 900px) {
+   nav.side-nav {
+    position: static;
+    width: auto;
+    bottom: auto;
+   }
+
+   body.side-layout #content {
+    margin: 24px;
+   }
+  }
+ </style>
+
+ <script>
+  // docPages
+  // Documentation menu items (do not include 'Home' - it's added automatically), and
+  // default base url.
+
+  // Menu style: "default" keeps the top bar (nested pages become dropdowns),
+  // "side" fixes a nested side menu to the left.
+  const menuStyle = "side";
+
+  // Menu items used to parse data from documentation folder. Entries can be:
+  //  - "Name" or "Label::path"   - a single page (legacy behavior)
+  //  - "folder/"                 - the folder's README.md is its page; folders
+  //                                without a README render as group labels
+  //                                (or drop when they have no children)
+  //  - "folder/*.md"             - every markdown file in the folder
+  //  - "readme:folders"          - discover every folder with a README.md
+  // Nesting comes from the paths themselves.
+  const docPages = [
+   "TODO.md",
+   "authorization/", "authorization/csharp-server/", "authorization/py-server/", "authorization/ts-server/",
+   "develop/",
+   "develop/weather-clients/", "develop/weather-clients/csharp/", "develop/weather-clients/java/",
+   "develop/weather-clients/kotlin/", "develop/weather-clients/py/", "develop/weather-clients/ruby/",
+   "develop/weather-clients/rust/", "develop/weather-clients/ts/",
+   "develop/weather-servers/", "develop/weather-servers/csharp/", "develop/weather-servers/go/",
+   "develop/weather-servers/java/", "develop/weather-servers/kotlin/", "develop/weather-servers/py/",
+   "develop/weather-servers/ruby/", "develop/weather-servers/rust/", "develop/weather-servers/ts/",
+   "modules/", "modules/weather_card-py/", "modules/weather-on-broadway/"
+  ];
+  // Documentation folder (for legacy single-page entries).
+  const docRoot = "docs";
+  // Branch where pages is deployed.
+  const repoBranch = "main";
+
+  // GitHub username.
+  const defaultUserName = `isocialPractice`;
+  // GitHub repo name.
+  const defaultRepoName = `exercise-mcp`;
+  // Raw content path to repo branch where pages is deployed.
+  const defaultBaseUrl = `https://raw.githubusercontent.com/${defaultUserName}/${defaultRepoName}/refs/heads/${repoBranch}/`;
+ </script>
+</head>
+
+<body>
+
+ <!-- Holds the raw parsed markdown, removing it from display. -->
+ <textarea id="markdown-source" style="display: none;"></textarea>
+
+ <!-- Where the markdown converted to html will be parsed and rendered  -->
+ <div id="content" class="markdown-body"></div>
+
+ <!-- Use `marked` for converting markdown to html -->
+ <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+
+ <!-- Render MDX tab blocks (<Tabs>/<Tab title>, <CodeGroup>) like the
+      modelcontextprotocol.io tutorials. -->
+ <script>
+  // embeddedScript
+  // MDX blocks are lifted out of the raw markdown before `marked` runs (which
+  // would drop fence titles), stashed as structured data, and rendered as tab
+  // groups after the parse.
+
+  var mdxSlots = [];
+
+  // Parse the fences inside a <CodeGroup> region, keeping each fence's full
+  // info string ("bash macOS/Linux") as the tab title.
+  function parseMdxFences(block) {
+   var fences = [];
+   var current = null;
+   block.split(/\r?\n/).forEach(function(raw) {
+    var open = raw.match(/^(\s*)```(\S+)[ \t]*(.*)$/);
+    if (!current && open) {
+     current = { indent: open[1].length, lang: open[2], title: open[3].trim(), lines: [] };
+     return;
+    }
+    if (current && /^\s*```\s*$/.test(raw)) {
+     current.body = current.lines.join('\n');
+     fences.push(current);
+     current = null;
+     return;
+    }
+    if (current) current.lines.push(raw);
+   });
+   return fences;
+  }
+
+  // Replace each MDX region with a one-line placeholder `marked` passes
+  // through untouched; the stash carries the real content.
+  function preprocessMdx(md) {
+   mdxSlots = [];
+
+   md = md.replace(/<CodeGroup>\r?\n([\s\S]*?)\r?\n<\/CodeGroup>/g, function(match, inner) {
+    var fences = parseMdxFences(inner);
+    if (!fences.length) return match;
+    mdxSlots.push({ type: 'codegroup', fences: fences });
+    return '<div class="mdx-slot" data-mdx-slot="' + (mdxSlots.length - 1) + '"></div>';
+   });
+
+   md = md.replace(/<Tabs>\r?\n([\s\S]*?)\r?\n<\/Tabs>/g, function(match, inner) {
+    var tabs = [];
+    inner.replace(/<Tab title="([^"]+)">\r?\n([\s\S]*?)\r?\n<\/Tab>/g, function(m, title, body) {
+     tabs.push({ title: title, body: body });
+     return m;
+    });
+    if (!tabs.length) return match;
+    mdxSlots.push({ type: 'tabs', tabs: tabs });
+    return '<div class="mdx-slot" data-mdx-slot="' + (mdxSlots.length - 1) + '"></div>';
+   });
+
+   return md;
+  }
+
+  // Swap every placeholder for a working tab group.
+  function renderMdxSlots(container) {
+   container.querySelectorAll('.mdx-slot').forEach(function(slot) {
+    var data = mdxSlots[Number(slot.getAttribute('data-mdx-slot'))];
+    if (!data) return;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'mdx-tabs';
+    var bar = document.createElement('div');
+    bar.className = 'mdx-tab-bar';
+    var panels = [];
+    var items = data.type === 'codegroup' ? data.fences : data.tabs;
+
+    items.forEach(function(item, i) {
+     var btn = document.createElement('button');
+     btn.type = 'button';
+     btn.className = 'mdx-tab-btn' + (i === 0 ? ' active' : '');
+     btn.textContent = item.title || item.lang || ('Tab ' + (i + 1));
+     btn.setAttribute('data-mdx-tab', i);
+     bar.appendChild(btn);
+
+     var panel = document.createElement('div');
+     panel.className = 'mdx-tab-panel' + (i === 0 ? ' active' : '');
+     if (data.type === 'codegroup') {
+      var pre = document.createElement('pre');
+      var code = document.createElement('code');
+      if (item.lang) code.className = 'language-' + item.lang;
+      code.textContent = item.body;
+      pre.appendChild(code);
+      panel.appendChild(pre);
+     } else {
+      panel.innerHTML = marked.parse(item.body);
+     }
+     panels.push(panel);
+    });
+
+    wrap.appendChild(bar);
+    panels.forEach(function(p) { wrap.appendChild(p); });
+
+    bar.addEventListener('click', function(e) {
+     var btn = e.target.closest('.mdx-tab-btn');
+     if (!btn) return;
+     var idx = Number(btn.getAttribute('data-mdx-tab'));
+     bar.querySelectorAll('.mdx-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+     btn.classList.add('active');
+     panels.forEach(function(p, i) { p.classList.toggle('active', i === idx); });
+    });
+
+    slot.replaceWith(wrap);
+   });
+  }
+ </script>
+
+ <!-- Create menu for documentation, and define global variables. -->
+ <script>
+  // embeddedScript
+  // Use the variable `docPages` defined in head html element to create menu, and define
+  // or use defaults for global variables. Entries build a tree: folder entries
+  // nest by their paths, and `menuStyle` picks a top bar with dropdowns
+  // ("default") or a fixed nested side menu ("side").
+
+  // Global variables
+  const content = document.getElementById("content");
+
+  // Helper function to convert to camelCase
+  var toCamelCase = (str) => {
+   return str.replace(/(?:^\w|[A-Z]|\b\w)/g, (letter, index) => {
+    return index === 0 ? letter.toLowerCase() : letter.toUpperCase();
+   }).replace(/\s+/g, '');
+  };
+
+  // Generate file path for a page name by trying different naming conventions
+  var resolveFilePath = (pageName) => {
+   // Try different naming conventions, prioritizing lowercase with hyphens
+   let conventions = [
+    // Spaces to hyphens (most common)
+    { name: pageName.replace(/\s+/g, '-'), cases: ['lower', 'upper', 'camel'] },
+    // camelCase
+    { name: toCamelCase(pageName), cases: ['same', 'lower', 'upper'] },
+    // Spaces to underscores
+    { name: pageName.replace(/\s+/g, '_'), cases: ['lower', 'upper', 'camel'] }
+   ];
+
+   // Build array of all possible filenames to try
+   let possibleFiles = [];
+   conventions.forEach(conv => {
+    conv.cases.forEach(caseType => {
+     let fileName;
+     if (caseType === 'upper') {
+      fileName = conv.name.toUpperCase();
+     } else if (caseType === 'lower') {
+      fileName = conv.name.toLowerCase();
+     } else if (caseType === 'camel') {
+      fileName = toCamelCase(conv.name);
+     } else {
+      fileName = conv.name;
+     }
+     possibleFiles.push(fileName + '.md');
+    });
+   });
+
+   // Try the name exactly as given first, so mixed-case nested paths like
+   // "../develop/README" resolve on case-sensitive hosts.
+   possibleFiles.unshift(pageName.replace(/\s+/g, '-') + '.md');
+
+   // Return all possible files for fallback attempts
+   return possibleFiles;
+  }
+
+  // Build the menu tree from docPages. repoTree is a flat list of repository
+  // paths (from the GitHub tree API) used to verify folder READMEs and expand
+  // "folder/*.md" and "readme:folders" entries; pass null to skip validation.
+  // opts.validate false keeps the tree for expansion only, so another
+  // validator (the localhost one) can decide the links.
+  function buildMenuTree(entries, repoTree, opts) {
+   const roots = [];
+   const byPath = {};
+
+   // A folder entry's page is its README; parents materialize on demand so
+   // "a/b/c/" alone still nests under "a" and "a/b".
+   function folderNode(folderPath) {
+    const clean = folderPath.replace(/\/+$/, '');
+    if (byPath[clean]) return byPath[clean];
+    const segs = clean.split('/');
+    const node = {
+     label: segs[segs.length - 1],
+     file: '../' + clean + '/README.md',
+     folder: clean,
+     children: []
+    };
+    byPath[clean] = node;
+    if (segs.length > 1) {
+     folderNode(segs.slice(0, -1).join('/') + '/').children.push(node);
+    } else {
+     roots.push(node);
+    }
+    return node;
+   }
+
+   function leafNode(label, file, attempts, pageName) {
+    return { label: label, file: file, attempts: attempts || null, pageName: pageName || null, children: [] };
+   }
+
+   entries.forEach((entry) => {
+    if (entry === 'README.md') return; // Home is always added first
+
+    if (entry === 'readme:folders') {
+     if (!repoTree) { console.warn('readme:folders needs the repository tree; entry skipped'); return; }
+     repoTree.forEach((path) => {
+      const match = path.match(/^(.+)\/README\.md$/i);
+      if (match && !/(^|\/)(node_modules|\.git|\.venv)(\/|$)/.test(match[1])) folderNode(match[1] + '/');
+     });
+     return;
+    }
+
+    const glob = entry.match(/^(.*)\/\*\.md$/i);
+    if (glob) {
+     if (!repoTree) { console.warn('"' + entry + '" needs the repository tree; entry skipped'); return; }
+     const parent = folderNode(glob[1] + '/');
+     repoTree.forEach((path) => {
+      const inFolder = path.match(new RegExp('^' + glob[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/([^/]+\\.md)$', 'i'));
+      if (inFolder && !/^README\.md$/i.test(inFolder[1])) {
+       parent.children.push(leafNode(inFolder[1].replace(/\.md$/i, ''), '../' + path, null, null));
+      }
+     });
+     return;
+    }
+
+    if (entry.endsWith('/')) {
+     folderNode(entry);
+     return;
+    }
+
+    // Repo-root markdown file, like "TODO.md"
+    if (/\.md$/i.test(entry) ) {
+     roots.push(leafNode(entry.replace(/\.md$/i, '').replace(/\.{1,}\//gim, ''), '../' + entry.replace(/^\.\.\//, ''), null, null));
+     return;
+    }
+
+    // Legacy single page: "Name" or "Label::path"
+    let label = entry, pageName = entry;
+    if (entry.includes('::')) {
+     label = entry.split('::')[0].trim();
+     pageName = entry.split('::')[1].trim();
+    }
+    const attempts = resolveFilePath(pageName);
+    roots.push(leafNode(label.replace(/\.{1,}\//gim, ''), attempts[0], attempts, pageName));
+   });
+
+   // With the repository tree known (and validation on), folders without a
+   // README lose their link; when they also have no children they leave the
+   // menu entirely.
+   if (repoTree && (!opts || opts.validate !== false)) {
+    const paths = {};
+    repoTree.forEach((p) => { paths[p.toLowerCase()] = true; });
+    const mark = (nodes) => nodes.forEach((node) => {
+     if (node.folder && !paths[(node.folder + '/readme.md').toLowerCase()]) node.file = null;
+     mark(node.children);
+    });
+    mark(roots);
+    return pruneUnlinked(roots);
+   }
+   return roots;
+  }
+
+  // Folders that lost their link and have no children leave the menu.
+  function pruneUnlinked(nodes) {
+   return nodes.filter((node) => {
+    node.children = pruneUnlinked(node.children);
+    if (node.folder && node.file === null) return node.children.length > 0;
+    return true;
+   });
+  }
+
+  // On localhost the checkout is the truth, not the pushed tree, so folder
+  // READMEs verify against the local server instead. Unpushed folders then
+  // still appear in the menu.
+  function validateFoldersLocally(tree) {
+   const checks = [];
+   const walk = (nodes) => nodes.forEach((node) => {
+    if (node.folder) {
+     checks.push(
+      fetch('/' + node.folder + '/README.md', { method: 'HEAD' })
+       .then((res) => { if (!res.ok) node.file = null; })
+       .catch(() => { node.file = null; })
+     );
+    }
+    walk(node.children);
+   });
+   walk(tree);
+   return Promise.all(checks).then(() => pruneUnlinked(tree));
+  }
+
+  // One request for the whole repository listing; null on any failure.
+  function fetchRepoTree() {
+   const url = 'https://api.github.com/repos/' + defaultUserName + '/' + defaultRepoName +
+    '/git/trees/' + repoBranch + '?recursive=1';
+   return fetch(url)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((json) => (json && json.tree ? json.tree.map((t) => t.path) : null))
+    .catch(() => null);
+  }
+
+  function makeLink(node) {
+   if (!node.file) {
+    const span = document.createElement('span');
+    span.className = 'page-label';
+    span.textContent = node.label;
+    return span;
+   }
+   const link = document.createElement('a');
+   link.href = '#';
+   link.className = 'page-link';
+   link.setAttribute('data-file', node.file);
+   if (node.pageName) link.setAttribute('data-page-name', node.pageName);
+   if (node.attempts) link.setAttribute('data-file-attempts', JSON.stringify(node.attempts));
+   link.textContent = node.label;
+   return link;
+  }
+
+  function homeNode() {
+   return { label: 'Home', file: '../README.md', children: [] };
+  }
+
+  // menuStyle "default": the existing top bar; nodes with children add a
+  // dropdown panel, deeper levels indent inside it.
+  function renderTopBar(tree) {
+   const nav = document.createElement('nav');
+   nav.className = 'page-nav';
+   const navContainer = document.createElement('div');
+   navContainer.className = 'nav-container';
+   const pageMenu = document.createElement('ul');
+   pageMenu.className = 'page-menu';
+   pageMenu.id = 'docs-menu';
+
+   [homeNode()].concat(tree).forEach((node, index) => {
+    const li = document.createElement('li');
+    const link = makeLink(node);
+    if (index === 0) link.classList.add('active');
+    li.appendChild(link);
+
+    if (node.children.length) {
+     li.classList.add('has-children');
+     const caret = document.createElement('span');
+     caret.className = 'menu-caret';
+     caret.textContent = '▾';
+     link.appendChild(caret);
+
+     const dropdown = document.createElement('div');
+     dropdown.className = 'dropdown';
+     const list = document.createElement('ul');
+     const addRows = (nodes, depth) => {
+      nodes.forEach((child) => {
+       const row = document.createElement('li');
+       const childLink = makeLink(child);
+       if (depth > 1) childLink.classList.add('depth-' + Math.min(depth, 3));
+       row.appendChild(childLink);
+       list.appendChild(row);
+       addRows(child.children, depth + 1);
+      });
+     };
+     addRows(node.children, 1);
+     dropdown.appendChild(list);
+     li.appendChild(dropdown);
+
+     // Touch devices have no hover, so a tap on the parent also opens it.
+     link.addEventListener('click', () => li.classList.toggle('open'));
+    }
+    pageMenu.appendChild(li);
+   });
+
+   navContainer.appendChild(pageMenu);
+   nav.appendChild(navContainer);
+   content.parentNode.insertBefore(nav, content);
+  }
+
+  // menuStyle "side": a fixed side menu; children nest with a collapse toggle
+  // per branch, the common documentation-site layout.
+  function renderSideNav(tree) {
+   document.body.classList.add('side-layout');
+   const nav = document.createElement('nav');
+   nav.className = 'side-nav';
+
+   const title = document.createElement('span');
+   title.className = 'side-title';
+   title.textContent = document.title;
+   nav.appendChild(title);
+
+   const rootList = document.createElement('ul');
+   rootList.className = 'side-menu';
+
+   const addNode = (node, list, isHome) => {
+    const li = document.createElement('li');
+    const row = document.createElement('div');
+    row.className = 'side-row';
+    const link = makeLink(node);
+    if (isHome) link.classList.add('active');
+    row.appendChild(link);
+
+    if (node.children.length) {
+     const toggle = document.createElement('button');
+     toggle.type = 'button';
+     toggle.className = 'side-toggle';
+     toggle.textContent = '▾';
+     toggle.setAttribute('aria-label', 'Toggle ' + node.label);
+     toggle.addEventListener('click', () => {
+      li.classList.toggle('side-collapsed');
+      toggle.textContent = li.classList.contains('side-collapsed') ? '▸' : '▾';
+     });
+     row.appendChild(toggle);
+    }
+    li.appendChild(row);
+
+    if (node.children.length) {
+     const childList = document.createElement('ul');
+     childList.className = 'side-children';
+     node.children.forEach((child) => addNode(child, childList, false));
+     li.appendChild(childList);
+    }
+    list.appendChild(li);
+   };
+
+   addNode(homeNode(), rootList, true);
+   tree.forEach((node) => addNode(node, rootList, false));
+   nav.appendChild(rootList);
+   document.body.insertBefore(nav, document.body.firstChild);
+  }
+
+  function createDocPageMenu() {
+   const local = window.location.href.indexOf('localhost') > -1;
+   // The remote tree expands globs and readme:folders; explicit folder
+   // entries on localhost validate against the local checkout instead, so a
+   // local run needs no network at all when there is nothing to expand.
+   const needsRemote = docPages.some((e) => e === 'readme:folders' || /\/\*\.md$/i.test(e));
+   const needsTree = needsRemote || docPages.some((e) => e.endsWith('/'));
+   const treePromise = needsTree && (needsRemote || !local) ? fetchRepoTree() : Promise.resolve(null);
+   return treePromise.then((repoTree) => {
+    const built = buildMenuTree(docPages, repoTree, { validate: !local });
+    const validated = local && needsTree ? validateFoldersLocally(built) : Promise.resolve(built);
+    return validated.then((tree) => {
+     if (typeof menuStyle !== 'undefined' && menuStyle === 'side') {
+      renderSideNav(tree);
+     } else {
+      renderTopBar(tree);
+     }
+    });
+   });
+  }
+
+  // Create menu when DOM is loaded; the loader waits on this promise.
+  window.menuBuilt = new Promise((resolve) => {
+   const run = () => createDocPageMenu().then(resolve);
+   if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+   } else {
+    run();
+   }
+  });
+ </script>
+
+ <!-- Load markdown, converting it to html using `marked`. -->
+ <script>
+  // embeddedScript
+  // Load markdown file and render it.
+
+  var baseUrl, username, repoName; /* defined in function */
+  function loadMarkdown(file, pageLink) {
+   if (pageLink == undefined) pageLink = 0;
+
+   if (window.location.href.indexOf('localhost') > -1) {
+    baseUrl = '/';
+   } else {
+    // Extract GitHub username and repo from current URL
+    let urlParts = window.location.href.match(/github\.io\/([^\/]+)/);
+    if (urlParts) {
+     repoName = urlParts[1];
+     // Get username from hostname
+     username = window.location.hostname.split('.')[0];
+     baseUrl = `https://raw.githubusercontent.com/${username}/${repoName}/refs/heads/${repoBranch}/`;
+    } else {
+     // Fallback to default if pattern doesn't match
+     baseUrl = defaultBaseUrl;
+     username = defaultUserName;
+     repoName = defaultRepoName;
+    }
+   }
+
+   let fileUrl;
+   if (pageLink == 0) {
+    fileUrl = /* full path with configed globals */
+     file.startsWith('../') ? baseUrl + file.substring(3) : `${baseUrl}${docRoot}/${file}`;
+   } else {
+    fileUrl = file; /* path from url */
+   }
+
+   let xhttp = new XMLHttpRequest();
+   // IMPORTANT - this cannot be used as an arrow function
+   xhttp.onreadystatechange = function() {
+    if (this.readyState == 4) {
+     if (this.status == 200) {
+      let data = this.responseText;
+      let markdownSource = document.getElementById('markdown-source');
+      markdownSource.value = data;
+
+      // Parse and render markdown, lifting MDX tab blocks out first and
+      // rendering them as tab groups after.
+      content.innerHTML = marked.parse(preprocessMdx(data));
+      renderMdxSlots(content);
+
+      // Convert links to markdown files to parsable data
+      let aTags = document.getElementsByTagName("a");
+      for (let i = 0; i < aTags.length; i++) {
+       if (aTags[i].hasAttribute("href")) {
+        let href = aTags[i].getAttribute("href");
+        // Check if href is a markdown file (.md extension)
+        if (href.endsWith('.md')) {
+         // Convert link to onclick handler that loads markdown
+         aTags[i].style.cursor = 'pointer';
+         aTags[i].addEventListener("click", function(e) {
+          e.preventDefault();
+          
+          // Extract base filename from href (remove path and normalize)
+          let hrefFileName = href.split('/').pop().toLowerCase();
+          let hrefBaseName = hrefFileName.replace('.md', '');
+          
+          // Check if this matches a menu item
+          let menuLinks = document.querySelectorAll('.page-link');
+          let matchedLink = null;
+          
+          menuLinks.forEach(l => {
+           // Check against all possible file name attempts
+           if (l.hasAttribute('data-file-attempts')) {
+            let attempts = JSON.parse(l.getAttribute('data-file-attempts'));
+            let attemptMatch = attempts.some(attempt => {
+             let attemptBase = attempt.toLowerCase().replace('.md', '');
+             attemptBase = attemptBase.replace('../', '');
+             return attemptBase === hrefBaseName || attempt.toLowerCase() === hrefFileName;
+            });
+            if (attemptMatch) {
+             matchedLink = l;
+            }
+           } else {
+            // For Home link (README.md), check directly
+            let dataFile = l.getAttribute('data-file');
+            if (dataFile) {
+             let dataFileName = dataFile.split('/').pop().toLowerCase();
+             if (dataFileName === hrefFileName || dataFile.toLowerCase().includes(hrefFileName)) {
+              matchedLink = l;
+             }
+            }
+           }
+          });
+          
+          // If we found a matching menu item, click it to activate and load
+          if (matchedLink) {
+           menuLinks.forEach(l => l.classList.remove('active'));
+           matchedLink.classList.add('active');
+           let menuFile = matchedLink.getAttribute('data-file');
+           loadMarkdown(menuFile);
+          } else {
+           // No menu match - just load the file directly
+           menuLinks.forEach(l => l.classList.remove('active'));
+           loadMarkdown(href, 1);
+          }
+         });
+         // null the href to prevent default navigation
+         aTags[i].setAttribute("href", "javascript:void(0)");
+        }
+       }
+      }
+     } else if (this.status == 404) {
+      // Try fallback file names if available
+      let activeLink = document.querySelector('.page-link.active');
+      if (activeLink && activeLink.hasAttribute('data-file-attempts')) {
+       let attempts = JSON.parse(activeLink.getAttribute('data-file-attempts'));
+       let currentAttemptIndex = attempts.indexOf(file);
+
+       if (currentAttemptIndex > -1 && currentAttemptIndex < attempts.length - 1) {
+        // Try next file name variation
+        let nextFile = attempts[currentAttemptIndex + 1];
+        loadMarkdown(nextFile);
+       } else {
+        console.error(`Could not find file for: ${activeLink.getAttribute('data-page-name')}. Tried:`, attempts);
+       }
+      }
+     }
+    }
+   };
+   xhttp.open('GET', fileUrl, true);
+   xhttp.send();
+  }
+
+  // Set up menu click handlers once the menu has been built (the folder
+  // syntax builds asynchronously), then load the Home page.
+  window.menuBuilt.then(function() {
+   let menuLinks = document.querySelectorAll('.page-link');
+
+   menuLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+    e.preventDefault();
+
+    // Remove active class from all links
+    menuLinks.forEach(l => l.classList.remove('active'));
+
+    // Add active class to clicked link
+    this.classList.add('active');
+
+    // Load the markdown file
+    let file = this.getAttribute('data-file');
+    loadMarkdown(file);
+    });
+   });
+
+   // Load default file (README.md)
+   loadMarkdown('../README.md');
+  });
+ </script>
+
+ <!-- Add anchor links to current parsed markdown. -->
+ <script>
+  // embeddedScript
+  // Add id for anchor links to the parsed markdown.
+  // This function generates GitHub-style anchor IDs for all headings
+  function addAnchorLinksToHeadings() {
+   // Select all heading elements (h1 through h6)
+   const headings = document.querySelectorAll('.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6');
+   
+   headings.forEach(heading => {
+    // Get the text content of the heading
+    const headingText = heading.textContent.trim();
+    
+    // Generate GitHub-style ID: lowercase, replace spaces with hyphens, remove special characters
+    const anchorId = headingText
+     .toLowerCase()
+     .replace(/\s+/g, '-')           // Replace spaces with hyphens
+     .replace(/[^\w\-]/g, '');       // Remove non-word characters except hyphens
+    
+    // Set the id attribute
+    heading.setAttribute('id', anchorId);
+   });
+  }
+  
+  // Create a MutationObserver to watch for content changes
+  const contentObserver = new MutationObserver((mutations) => {
+   mutations.forEach((mutation) => {
+    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+     // Content has been updated, add anchor links
+     addAnchorLinksToHeadings();
+    }
+   });
+  });
+  
+  // Start observing the content div for changes
+  document.addEventListener('DOMContentLoaded', function() {
+   const contentDiv = document.getElementById('content');
+   if (contentDiv) {
+    contentObserver.observe(contentDiv, { childList: true, subtree: false });
+    // Also run once on load in case content is already there
+    addAnchorLinksToHeadings();
+   }
+  });
+ </script>
+
+ <!-- For debugging, assuming localhost will be used before pushing to GitHub. -->
+ <script>
+   // embeddedScript
+   // Debugging tool to adjust root link per localhost test, and github pages.
+
+   var href = location.href;
+   var pgHref = document.querySelectorAll("[href], [src]");
+   if (href.indexOf("localhost") > -1) {
+    let pgHrefLen = pgHref.length;
+    for (i = 0; i < pgHrefLen; i++) {
+     let curVal;
+     if (pgHref[i].hasAttribute("href")) {
+      curVal = pgHref[i].getAttribute("href");
+      pgHref[i].setAttribute("href", curVal.replace(`https://${username}.github.io/${repoName}`, ""));
+     }
+     if (pgHref[i].hasAttribute("src")) {
+      curVal = pgHref[i].getAttribute("src");
+      pgHref[i].setAttribute("src", curVal.replace(`https://${username}.github.io/${repoName}`, ""));
+     }
+    }
+   }
+
+   // Use a blank favicon if one was not found
+   (function() {
+    // Check if favicon link exists in head
+    let faviconLink = document.querySelector('link[rel*="icon"]');
+
+    if (!faviconLink) {
+     // No favicon exists, create one with white circle SVG
+     faviconLink = document.createElement('link');
+     faviconLink.rel = 'icon';
+     faviconLink.type = 'image/svg+xml';
+
+     // Create SVG data URI for a solid white circle
+     let svgCircle = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="white"/></svg>';
+     faviconLink.href = 'data:image/svg+xml,' + encodeURIComponent(svgCircle);
+
+     document.head.appendChild(faviconLink);
+    } else {
+     // Favicon link exists, check if it loads successfully
+     let testImg = new Image();
+     testImg.onerror = () => {
+      // Favicon failed to load (404 or error), replace with white circle SVG
+      let svgCircle = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="white"/></svg>';
+      faviconLink.href = 'data:image/svg+xml,' + encodeURIComponent(svgCircle);
+     };
+     testImg.src = faviconLink.href;
+    }
+   })();
+ </script>
+
+ <!-- User scripts -->
+ <script id="userScripts">
+  // userScripts
+  // Scripts to add on an as needed basis.
+
+ </script>
+
+</body>
+</html>
+
+<!-- Error Check -->
+<script>
+ // errorCheck
+ // Check for console errors, and output results for easier debuggin.
+
+ // Get completion time.
+ var timeToParse = 0, errorLength = 0;
+ function completionTime() {
+  setTimeout(() => {
+   timeToParse++;
+   if (timeToParse <= 1999) {
+    if (content.innerText.length > 0) {
+     let skip;         // markdown parsed - no nothing
+    } else {
+     completionTime(); // recurse to get time
+    }
+   } else {
+    timeToParse = false;
+    errorLength++;
+   }
+  }, 1);
+ }
+ completionTime(); // get parse time
+ // Check user scripts.
+ let checkUserScriptUse = `
+  // userScripts
+  // Scripts to add on an as needed basis.
+
+ `;
+ let userScripts    = document.getElementById("userScripts");
+ let userScriptData = userScripts.textContent;
+
+ // Output markdown parsing results.
+ console.log(`All markedPages scripts complete with:`);
+ setTimeout(() => {
+  // check if the menu parsed - folder entries expand and prune, so the count
+  // check is simply "at least Home rendered"
+  let navLinks = document.querySelectorAll(".page-link");
+  if (navLinks.length < 1) errorLength++;
+  if (userScriptData == checkUserScriptUse) console.log("user scripts: not used");
+  else console.log("user scripts: used");
+  if (content && content.textContent.length > 0) console.log("markdown parsed: ok");
+  else if (content) { console.log("markdown parsed: fail"); errorLength++; }
+  else { console.log("mardown parsed: unknown"); errorLength++; }
+  console.log("time to parse:", timeToParse, "milliseconds");
+  console.log("errors:", errorLength);
+ }, 2000); // wait 2 second
+
+</script>

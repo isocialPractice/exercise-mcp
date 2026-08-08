@@ -88,27 +88,9 @@ anything on its own that you didn't ask for.
 
 ## Add to `claude_desktop_config.json`
 
-<!-- ```
-(markedPages.index, add.mdx.langTabSelect)=> {
-    <CodeGroup>
-      ```json macOS/Linux theme={null}
-      "weather-card": {
-        "command": "python",
-        "args": ["/absolute/path/to/weather_card_app.py"]
-      }
-      ```
+<CodeGroup>
 
-      ```json Windows theme={null}
-      "weather-card": {
-        "command": "python",
-        "args": ["D:\\Users\\name\\path\\to\\weather_card_app.py"]
-      }
-      ```
-    </CodeGroup>
-}
-``` -->
-
-```json
+```json macOS/Linux
 {
  "mcpServers": {
   "weather-card": {
@@ -119,6 +101,20 @@ anything on its own that you didn't ask for.
  }
 }
 ```
+
+```json Windows
+{
+ "mcpServers": {
+  "weather-card": {
+    "command": "python",
+    "args": ["D:\\Users\\name\\path\\to\\weather_card_app.py"],
+    "env": { "WEATHER_CARD_DEFAULT_LOCATION": "Springfield, IL" }
+  }
+ }
+}
+```
+
+</CodeGroup>
 
 `WEATHER_CARD_DEFAULT_LOCATION` is optional. Set it to your own city and a bare
 "what's the weather?" answers for there without any IP lookup; leave it out and

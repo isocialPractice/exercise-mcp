@@ -5,6 +5,8 @@ rem buildExercise
 :; Global variables.
 set "_parOneBuildExercise=%~1"
 set "_checkParOneBuildExercise=-%_parOneBuildExercise%-"
+rem Windows restores the net9.0 package set, WSL restores net10.0.
+set "_osVersion=9"
 
 cd /D "%~dp0"
 call :_runBuildExercise 0
@@ -12,26 +14,28 @@ goto:eof
 
 :_package
  if "%1"=="1" (
-  type project.txt >   "%~dp0ProtectedMcpServer.csproj"
-  sed -i "s/_OS_V_/9/" "%~dp0ProtectedMcpServer.csproj"
+  call :_main 1 PROTECTEDMCPSERVER ProtectedMcpServer.csproj
+  rem The README pins one framework, so retarget it to the major this side builds.
+  sed -i "s|<TargetFramework>net[0-9]*\.0</TargetFramework>|<TargetFramework>net%_osVersion%.0</TargetFramework>|" ProtectedMcpServer.csproj
  )
 goto:eof
 
 :_main
  if "%1"=="1" (
-  echo: & echo Creating Server Files:
+  if "%3"=="Program.cs" (
+   echo: & echo Creating 'Program.cs' File:
+  ) else (
+   echo: & echo Creating Server Files:
+  )
   echo *************************************************************************
-  type build_source.data.txt | sed -zE "s/--START_MATH-TOOL--(.*)--END_MATH-TOOL--.*/\1/" | sed 1d > "%~dp0Tools\MathTools.cs"
-  echo: & echo Creating 'Program.cs' File:
-  echo *************************************************************************
-  type build_source.data.txt | sed -zE "s/.*--START_SERVER--(.*)--END_SERVER--.*/\1/" | sed 1d > "%~dp0Program.cs"
+  type build_source.data.txt | sed -zE "s/.*<!--START_%2-->\n[^\n]+\n(.*)\n```\n<!--END_%2-->.*/\1/" > %3
  )
 goto:eof
 
 :_install
  if "%1"=="1" (
   echo Run Project Server
-  dotnet run --framework net9.0
+  dotnet run --framework net%_osVersion%.0
  )
 goto:eof
 
@@ -79,6 +83,7 @@ goto:eof
     echo Creating project, copy pasted like its 2026
     echo:
     if NOT EXIST "%~dp0Tools" mkdir Tools >nul 2>nul
+    copy /Y "%~dp0README.md" "%~dp0build_source.data.txt" >nul 2>nul
     call :_runBuildExercise 1 & goto:eof
    ) else if "%_parOneBuildExercise%"=="--bash" (
     echo Building through WSL:
@@ -90,6 +95,7 @@ goto:eof
     if EXIST "%~dp0Tools" rmdir /S/Q "%~dp0Tools" >nul 2>nul
     if EXIST "%~dp0bin" rmdir /S/Q "%~dp0bin" >nul 2>nul
     if EXIST "%~dp0obj" rmdir /S/Q "%~dp0obj" >nul 2>nul
+    if EXIST "%~dp0Program.cs" del /Q "%~dp0Program.cs" >nul 2>nul
     if EXIST "%~dp0ProtectedMcpServer.csproj" del /Q "%~dp0ProtectedMcpServer.csproj" >nul 2>nul
     if EXIST "%~dp0..\..\exercise-mcp.code-workspace" (
      if EXIST "%~dp0..\%~n0.bat" (
@@ -114,7 +120,8 @@ goto:eof
   echo Making `ProtectedMcpServer.csproj` File: & echo:
   call :_package 1
   echo Preparing `server` Files: & echo:
-  call :_main 1
+  call :_main 1 MATH-TOOL Tools\MathTools.cs
+  call :_main 1 SERVER Program.cs
   call :_runBuildExercise 2 & goto:eof
  )
  if "%1"=="2" (
@@ -126,6 +133,7 @@ goto:eof
 goto:eof
 
 :_closeOut
+ if EXIST "%~dp0build_source.data.txt" del /Q "%~dp0build_source.data.txt" >nul 2>nul
  set _parOneBuildExercise=
  set _checkParOneBuildExercise=
  rem IMPORTANT - leave last
@@ -135,6 +143,7 @@ goto:eof
   echo   --reset
  )
  set _optOut=
+ set _osVersion=
  set _wslIp=
  set _serverUrl=
  set _wslDir=

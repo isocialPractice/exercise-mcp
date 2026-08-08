@@ -1,0 +1,17 @@
+<svg id="marquee" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200">
+  <rect x="8" y="8" width="464" height="184" rx="18" fill="#1a1030" stroke="#f2c94c" stroke-width="6"/>
+  <rect x="34" y="34" width="412" height="132" rx="10" fill="#2d1b4e"/>
+  <g fill="#ffe28a">
+    <circle cx="30" cy="30" r="7"/><circle cx="90" cy="22" r="7"/><circle cx="150" cy="22" r="7"/>
+    <circle cx="210" cy="22" r="7"/><circle cx="270" cy="22" r="7"/><circle cx="330" cy="22" r="7"/>
+    <circle cx="390" cy="22" r="7"/><circle cx="450" cy="30" r="7"/>
+    <circle cx="30" cy="100" r="7"/><circle cx="450" cy="100" r="7"/>
+    <circle cx="30" cy="170" r="7"/><circle cx="90" cy="178" r="7"/><circle cx="150" cy="178" r="7"/>
+    <circle cx="210" cy="178" r="7"/><circle cx="270" cy="178" r="7"/><circle cx="330" cy="178" r="7"/>
+    <circle cx="390" cy="178" r="7"/><circle cx="450" cy="170" r="7"/>
+  </g>
+  <text x="240" y="82" fill="#f2c94c" font-family="Georgia, serif" font-size="26"
+    text-anchor="middle" letter-spacing="2">WEATHER ON BROADWAY</text>
+  <text id="marquee-title" x="240" y="128" fill="#ffffff" font-family="Georgia, serif"
+    font-size="22" font-style="italic" text-anchor="middle">{title}</text>
+</svg>

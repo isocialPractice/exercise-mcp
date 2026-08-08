@@ -42,13 +42,13 @@ goto:eof
 
 :_main
  if "%1"=="1" (
-  echo: & echo Creating Server Files:
+  if "%3"=="mcp_server\server.py" (
+   echo: & echo Creating 'server.py' File:
+  ) else (
+   echo: & echo Creating Server Files:
+  )
   echo *************************************************************************
-  type build_source.data.txt | sed -zE "s/--START_CONFIG--(.*)--END_CONFIG--.*/\1/" | sed 1d > mcp_server\config.py
-  type build_source.data.txt | sed -zE "s/.*--START_TOKEN-VERIFY--(.*)--END_TOKEN-VERIFY--.*/\1/" | sed 1d > mcp_server\token_verifier.py
-  echo: & echo Creating 'server.py' File:
-  echo *************************************************************************
-  type build_source.data.txt | sed -zE "s/.*--START_SERVER--(.*)--END_SERVER--.*/\1/" | sed 1d > mcp_server\server.py
+  type build_source.data.txt | sed -zE "s/.*<!--START_%2-->\n[^\n]+\n(.*)\n```\n<!--END_%2-->.*/\1/" > %3
  )
 goto:eof
 
@@ -74,6 +74,7 @@ goto:eof
     echo Creating project, typing with skills like it is the 1980's.
     echo:
     if NOT EXIST "mcp_server" mkdir mcp_server >nul 2>nul
+    copy /Y "%~dp0README.md" "build_source.data.txt" >nul 2>nul
     call :_runBuildExercise 1 & goto:eof
    ) else if "%_parOneBuildExercise%"=="--reset" (
     echo Resetting Server:
@@ -104,7 +105,9 @@ goto:eof
   echo Making `pyproject.toml` File: & echo:
   call :_package 1
   echo Preparing `server.py` File: & echo:
-  call :_main 1
+  call :_main 1 CONFIG mcp_server\config.py
+  call :_main 1 TOKEN-VERIFY mcp_server\token_verifier.py
+  call :_main 1 SERVER mcp_server\server.py
   echo Credentials live in mcp_server\config.py ^(no .env file needed^).
   sed -i "s/<_KEYCLOAK_SERVER_ID_>/%_KEYCLOAK_ID%/" mcp_server\config.py
   sed -i "s/<_KEYCLOAK_SERVER_SECRET_>/%_KEYCLOAK_SECRET%/" mcp_server\config.py
@@ -119,6 +122,7 @@ goto:eof
 goto:eof
 
 :_closeOut
+ if EXIST "%~dp0build_source.data.txt" del /Q "%~dp0build_source.data.txt" >nul 2>nul
  set _parOneBuildExercise=
  set _checkParOneBuildExercise=
  rem IMPORTANT - leave last

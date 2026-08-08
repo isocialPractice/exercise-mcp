@@ -1,0 +1,23 @@
+{
+  "name": "weather-on-broadway",
+  "version": "0.1.0",
+  "description": "An MCP weather server that sings the forecast as original showtunes",
+  "type": "module",
+  "bin": {
+    "weather-on-broadway": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "files": [
+    "build",
+    "assets"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.9.3"
+  }
+}

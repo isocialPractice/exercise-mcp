@@ -49,12 +49,21 @@ _main() {
   # The data file carries CRLF endings, so strip them here and match markers on
   # the bare line. Written with awk rather than `sed -z` to stay portable to the
   # BSD sed that ships with macOS.
+  # Each section wraps its code in a fence, so the captured lines are buffered
+  # and the opening "```lang" and closing "```" are dropped on the way out.
   awk -v section="$_section" '
     { sub(/\r$/, "") }
-    $0 == "--START_" section "--" { capture = 1; next }
-    $0 == "--END_" section "--"   { capture = 0 }
-    capture
-  ' "$_scriptDir/build_source.data.txt" > "$_target"
+    $0 == "<!--START_" section "-->" { capture = 1; next }
+    $0 == "<!--END_" section "-->"   { capture = 0 }
+    capture { lines[++count] = $0 }
+    END {
+      if (count < 3) {
+        print "Section " section " not found in build_source.data.txt" > "/dev/stderr"
+        exit 1
+      }
+      for (i = 2; i < count; i++) print lines[i]
+    }
+  ' build_source.data.txt > "$_target" || _closeOut 1
 }
 
 _run() {
@@ -78,7 +87,7 @@ _runBuildExercise() {
       echo "Creating server project"
       echo
       mkdir -p "$_scriptDir/weather-server"
-      cp -f "$_scriptDir/build_source.data.txt" "$_scriptDir/weather-server/build_source.data.txt"
+      cp -f "$_scriptDir/README.md" "$_scriptDir/weather-server/build_source.data.txt"
       cd "$_scriptDir/weather-server" || _closeOut 1
       mkdir -p assets gui utils
       cp -f "$_scriptDir"/../assets/*.svg assets/

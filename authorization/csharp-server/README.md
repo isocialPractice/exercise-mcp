@@ -86,33 +86,23 @@ run. The project structure is generated from `build_source.data.txt` by the
 > The build script uses `sed`. On Windows, ensure a `sed` binary is on `PATH`
 > (for example via [Cygwin](https://www.cygwin.com/)).
 
-<!-- ```
-(markedPages.index, add.mdx.langCodeGroupSelect)=> {
+<CodeGroup>
 
-    <CodeGroup>
-      ```bash macOS/Linux theme={null}
+```bash macOS/Linux
+# Enusre to change to this folder.
+cd authorization/<server-folder>
+# Run the script
+./buildExercise.sh --build
+```
 
-      # Enusre to change to this folder.
-      cd authorization/<server-folder>
-      # Run the script
-      ./buildExercise.sh --build
-      ```
-
-      ```powershell Windows theme={null}
-      :: Enusre to change to this folder.
-      cd authorization\<server-folder>
-      :: Run the script
-      buildExercise.bat --build
-      ```
-}
-``` -->
-
-```batch
+```batch Windows
 :: Ensure you change to this folder.
 cd authorization\<server-folder>
 :: Run the script (generates files, runs `dotnet run`, starts the server)
 buildExercise.bat --build
 ```
+
+</CodeGroup>
 
 Use `--reset` to remove all generated files and return `csharp-server` to its
 original state:
@@ -127,6 +117,244 @@ This server does **not** use a `.env` file. Neither does it need credentials.
 Instead it leans on standard ASP.NET Core builder pattern. This allows for the
 built-in ASP.NET Core capabilities for token validation, and not the use of
 Keycloak introspection endpoint.
+
+## C# MCP Authorization Server
+
+### `ProtectedMcpServer.csproj`
+<!--START_PROTECTEDMCPSERVER-->
+```xml
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Identifier for the local secret store, not a secret itself. -->
+    <UserSecretsId>local-authorization-mcp-server</UserSecretsId>
+    <userVersion>0</userVersion>
+    <NoWarn>$(NoWarn);CS8600</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(userVersion)' == '2'">
+    <PackageReference Include="ModelContextProtocol" Version="2.0.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(userVersion)' == '0'">
+    <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.3" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.3.0-preview.3" />
+  </ItemGroup>
+
+  <!-- ProtectedResourceMetadata exposes Resource, ResourceDocumentation and
+       AuthorizationServers as Uri in the 0.x previews and as string in 2.0.
+       Program.cs compiles the matching form behind MCP_URI_METADATA, so this
+       target reads whichever ItemGroup above is uncommented and defines the
+       symbol only for a 0.x package. -->
+  <Target Name="DefineMcpMetadataShape" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <McpPackageVersion>@(PackageReference->WithMetadataValue('Identity', 'ModelContextProtocol')->'%(Version)')</McpPackageVersion>
+      <DefineConstants Condition="'$(McpPackageVersion)' != '' And $(McpPackageVersion.StartsWith('0.'))">$(DefineConstants);MCP_URI_METADATA</DefineConstants>
+    </PropertyGroup>
+  </Target>
+
+  <!-- The JwtBearer package major has to match the target framework major.
+       Windows builds net9.0 and WSL builds net10.0, so each pins the version
+       it can actually restore. -->
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.18" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+  </ItemGroup>
+
+</Project>
+```
+<!--END_PROTECTEDMCPSERVER-->
+
+### `Tools/MathTools.cs`
+<!--START_MATH-TOOL-->
+```cs
+using System.ComponentModel;
+using ModelContextProtocol;
+using ModelContextProtocol.Server;
+
+namespace ProtectedMcpServer.Tools;
+
+[McpServerToolType]
+public sealed class MathTools
+{
+    [McpServerTool, Description("Add two numbers together.")]
+    public Task<double> Add(
+        [Description("First operand")] double a,
+        [Description("Second operand")] double b)
+    {
+        return Task.FromResult(a + b);
+    }
+
+    [McpServerTool, Description("Multiply two numbers together.")]
+    public Task<double> Multiply(
+        [Description("First operand")] double a,
+        [Description("Second operand")] double b)
+    {
+        return Task.FromResult(a * b);
+    }
+}
+```
+<!--END_MATH-TOOL-->
+
+### `Program.cs`
+<!--START_SERVER-->
+```cs
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using ModelContextProtocol.AspNetCore.Authentication;
+using ModelContextProtocol.Authentication;
+using ProtectedMcpServer.Tools;
+using System.Reflection;
+using System.Security.Claims;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Public identity of this resource server. The client and the protected
+// resource metadata have to agree on this exact URL, so it stays a name the
+// client can actually route to.
+var serverUrl = ResolveUrl("MCP_SERVER_URL", "http://localhost:3000/");
+
+// Address Kestrel listens on, kept separate from serverUrl on purpose. A
+// localhost bind only accepts connections that originate on the same host, so
+// a server running inside WSL stays invisible to a client running on Windows.
+// 0.0.0.0 accepts on every IPv4 interface of whichever host it runs on.
+var listenUrl = ResolveUrl("MCP_LISTEN_URL", "http://0.0.0.0:3000/");
+
+var authorizationServerUrl = ResolveUrl("MCP_AUTH_SERVER_URL", "http://localhost:8080/realms/master/");
+
+// Human readable docs for the exposed tools, advertised to clients that read
+// the protected resource metadata. Declared once so both compile time branches
+// below stay in step.
+const string documentationUrl = "https://docs.example.com/api/math";
+
+// Keycloak stamps "iss" without a trailing slash and issuer validation is an
+// exact string comparison, so the trailing slash has to come off here.
+var tokenIssuer = authorizationServerUrl.TrimEnd('/');
+
+var builderServices = builder.Services.AddAuthentication(options =>
+{
+    options.DefaultChallengeScheme = McpAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+});
+
+builderServices.AddJwtBearer(options =>
+{
+    options.Authority = authorizationServerUrl;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = false, // Always enable in production
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = tokenIssuer,
+    };
+
+    options.RequireHttpsMetadata = false; // Set to true in production
+
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            var name = context.Principal?.Identity?.Name ?? "unknown";
+            var email = context.Principal?.FindFirstValue("preferred_username") ?? "unknown";
+            Console.WriteLine($"Token validated for: {name} ({email})");
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine("Challenging client to authenticate with Keycloak");
+            return Task.CompletedTask;
+        }
+    };
+});
+
+builderServices.AddMcp(options =>
+{
+    // ProtectedResourceMetadata carried Uri typed properties through the 0.x
+    // previews and switched them to string in 2.0, so the same assignment
+    // cannot serve both packages. The choice is a compile time one because a
+    // property binds a single type, which rules out a runtime version check.
+    // MCP_URI_METADATA is defined by the build whenever the active
+    // ModelContextProtocol PackageReference is a 0.x version, so swapping the
+    // ItemGroup in ProtectedMcpServer.csproj needs no edit here.
+    options.ResourceMetadata = new()
+    {
+#if MCP_URI_METADATA
+        Resource = new Uri(serverUrl),
+        ResourceDocumentation = new Uri(documentationUrl),
+        AuthorizationServers = [new Uri(authorizationServerUrl)],
+#else
+        Resource = serverUrl,
+        ResourceDocumentation = documentationUrl,
+        AuthorizationServers = [authorizationServerUrl],
+#endif
+        ScopesSupported = ["mcp:tools"]
+    };
+});
+
+builder.Services.AddAuthorization();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddMcpServer()
+    .WithTools<MathTools>()
+    .WithHttpTransport();
+
+var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapMcp().RequireAuthorization();
+
+// Reports the ModelContextProtocol build that actually loaded rather than the
+// version string in the project file, so a stale restore is visible at startup.
+var mcpVersion = typeof(ProtectedResourceMetadata).Assembly
+    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+    .InformationalVersion.Split('+')[0]
+    ?? typeof(ProtectedResourceMetadata).Assembly.GetName().Version?.ToString()
+    ?? "unknown";
+
+Console.WriteLine($"Starting MCP server with authorization at {serverUrl}");
+Console.WriteLine($"ModelContextProtocol version: {mcpVersion}");
+Console.WriteLine($"Listening on {listenUrl}");
+Console.WriteLine($"Using Keycloak server at {authorizationServerUrl}");
+Console.WriteLine($"Protected Resource Metadata URL: {serverUrl}.well-known/oauth-protected-resource");
+Console.WriteLine("Exposed Math tools: Add, Multiply");
+Console.WriteLine("Press Ctrl+C to stop the server");
+
+app.Run(listenUrl);
+
+// Reads an absolute http or https URL from the environment, falls back to the
+// supplied default, and fails fast with a readable message when malformed.
+static string ResolveUrl(string variableName, string fallback)
+{
+    var raw = Environment.GetEnvironmentVariable(variableName);
+    var value = string.IsNullOrWhiteSpace(raw) ? fallback : raw.Trim();
+
+    if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+        (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+    {
+        throw new InvalidOperationException(
+            $"{variableName} must be an absolute http or https URL. Received: '{value}'.");
+    }
+
+    return uri.ToString();
+}
+```
+<!--END_SERVER-->
 
 ## Starting the Server
 

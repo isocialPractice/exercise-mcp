@@ -2,8 +2,6 @@
 
 ## Get Started
 
-<!-- ```
-(markedPages.index, add.mdx.langTabSelect)=> {
 <Tabs>
 <Tab title="Windows">
 ### Set Windows Variables
@@ -33,28 +31,13 @@ vi ~/.bashrc
 export _KEYCLOAK_ID="<client-name>"
 
 # Will have a value like "eyJhbGciOiJSUzI1N...etc."
-export _KEYCLOAK_SECRET="<client-secrect>"
+export _KEYCLOAK_SECRET="<client-secret>"
 
 # Save and run:
 source ~/.bashrc
 ```
 </Tab>
 </Tabs>
-}
-``` -->
-
-**Requires Restart**
-
-> [!NOTE]
-> Ensure [Cygwin](https://www.cygwin.com/) dependency is installed
-
-```batch
-:: Set variable for reuse
-setx _KEYCLOAK_ID "<client-name>"
-
-:: Will have a value like "eyJhbGciOiJSUzI1N...etc."
-setx _KEYCLOAK_SECRET "<client-secret>"
-```
 
 ## Authentication Server with [VS Code](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/authorization#testing-the-mcp-server)
 
