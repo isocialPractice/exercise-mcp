@@ -264,7 +264,8 @@ We will now set up our MCP server to use the locally-running Keycloak authorizat
 For our testing purposes, we will create an extremely simple MCP server that exposes two tools - one for addition and another for multiplication. The server will require authorization to access these.
 
 <Tabs>
-  <!-- ()-> IGNORE -->
+  <!-- Not the base for this repository's exercise: authorization/ts-server was
+       resolved separately, see authorization/resolve-server.md. -->
   <Tab title="TypeScript">
     You can see the complete TypeScript project in the [sample repository](https://github.com/localden/min-ts-mcp-auth).
 
@@ -589,7 +590,7 @@ For our testing purposes, we will create an extremely simple MCP server that exp
     For more details about implementing MCP servers in TypeScript, refer to the [TypeScript SDK documentation](https://github.com/modelcontextprotocol/typescript-sdk).
   </Tab>
 
-  ()=> start-base("authorization/py-server"):
+  <!-- Base for authorization/py-server. -->
   <Tab title="Python">
     You can see the complete Python project in the [sample repository](https://github.com/modelcontextprotocol/python-sdk/tree/main/examples/servers/simple-auth).
 
@@ -894,8 +895,9 @@ For our testing purposes, we will create an extremely simple MCP server that exp
 
     For more details, see the [Python SDK documentation](https://github.com/modelcontextprotocol/python-sdk).
   </Tab>
-  ()=> end-base
-  <!-- ()-> IGNORE -->
+  <!-- End of the authorization/py-server base. -->
+  <!-- Not the base for this repository's exercise: authorization/csharp-server
+       was resolved separately, see authorization/resolve-server.md. -->
   <!-- <Tab title="C#">
     You can see the complete C# project in the [sample repository](https://github.com/localden/min-cs-mcp-auth).
 

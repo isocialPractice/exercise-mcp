@@ -42,7 +42,7 @@ the current time, then carry out the directives it returns - create the
 accordingly.
 ```
 
-<!-- - Tested on [street-crime](https://github.com/isocialPractice/street-crime/tree/local-weather) -->
+- Tested on [street-crime](https://github.com/isocialPractice/street-crime)
 
 ## Quick Snippets
 
@@ -167,6 +167,9 @@ The server created in this exercise is a variation of the below files.
 source "https://rubygems.org"
 
 gem "mcp"
+# Stay on the bigdecimal that ships with this Ruby as a default gem; newer
+# versions compile a native extension, which needs a working C toolchain.
+gem "bigdecimal", "3.0.0"
 ```
 <!--END_GEMFILE-->
 ### `weather.rb`
@@ -773,19 +776,30 @@ Run with `bundle exec ruby weather.rb` from the project folder.
 
 <CodeGroup>
 
+Claude Desktop does not apply a `cwd`, so give the script an absolute path
+and point Bundler at the Gemfile through `BUNDLE_GEMFILE`:
+
 ```json macOS/Linux
 "weather-server-gui": {
   "command": "bundle",
-  "args": ["exec", "ruby", "weather.rb"],
-  "cwd": "/PATH/TO/weather-server"
+  "args": ["exec", "ruby", "/PATH/TO/weather-server/weather.rb"],
+  "env": {
+    "BUNDLE_GEMFILE": "/PATH/TO/weather-server/Gemfile"
+  }
 }
 ```
 
 ```json Windows
     "weather-server-gui": {
       "command": "bundle",
-      "args": ["exec", "ruby", "weather.rb"],
-      "cwd": "D:\\Users\\name\\path\\to\\weather-server"
+      "args": [
+        "exec",
+        "ruby",
+        "D:\\Users\\name\\path\\to\\weather-server\\weather.rb"
+      ],
+      "env": {
+        "BUNDLE_GEMFILE": "D:\\Users\\name\\path\\to\\weather-server\\Gemfile"
+      }
     }
 ```
 

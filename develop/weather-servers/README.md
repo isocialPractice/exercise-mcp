@@ -4,11 +4,6 @@ One MCP weather server per language, each a variation of the official
 [build-server tutorial](https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server),
 focusing on GUI API usage.
 
-> [!NOTE]
-> AGENT NOTE: Ignore shorthand like:
-> - `(update.needed, .*)=>`
-> - `(markedPages.index, .*)=>`
-
 ## The Constants
 
 Every language folder repeats the same design, so it is documented once here.
@@ -78,3 +73,9 @@ those caches deliberately survive `--reset`.
 
 The py server predates the `repoPath` argument and registers its gui functions
 directly from docstrings; the other seven follow the shared tool table above.
+
+The ts server additionally ships a fifth tool, `weather_card`: an MCP Apps
+port of [modules/weather_card-py](../../modules/README.md) that serves an
+interactive local-weather card as a `ui://` resource, rendered inline on
+hosts with MCP Apps support and falling back to a plain-text summary
+everywhere else.

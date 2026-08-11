@@ -9,6 +9,33 @@ All notable changes to `exercise-mcp` are documented in this file.
 - `YYYY` -- four-digit year
 - `unreleased` -- constant prefix while the project has no tagged releases
 
+## [08.10.2026]
+
+### Added
+
+- `weather_card` tool on the ts weather server -- the weather-cards feature,
+  a TypeScript port of the `modules/weather_card-py` interactive card (MCP
+  Apps): resolves a location by name, coordinates, the
+  `WEATHER_CARD_DEFAULT_LOCATION` default, or public IP, then fetches
+  current conditions plus a day-by-day outlook (up to 8 days) from NWS and
+  returns a text summary alongside the `structuredContent` the card paints
+  from
+- `ui://weather/card` resource on the ts server, served as
+  `text/html;profile=mcp-app` with CSP connect domains limiting the card's
+  in-iframe fallback fetch; the server now declares the `resources`
+  capability with list/read handlers
+- `src/gui/guiWeatherCard.ts` marker section in the ts README, with matching
+  extraction lines in both `buildExercise` scripts
+
+### Fixed
+
+- ruby Gemfile pins `bigdecimal` to the default gem that ships with the
+  interpreter, so `bundle install` no longer tries to compile a native
+  extension on toolchain-less setups
+- ruby "Add Server" registration rewritten for Claude Desktop, which does not
+  apply a `cwd`: absolute `weather.rb` path plus `BUNDLE_GEMFILE` in the
+  entry's `env` block
+
 ## [08.07.2026]
 
 ### Added

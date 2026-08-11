@@ -1,10 +1,5 @@
 # Develop MCP Client
 
-> [!NOTE]
-> AGENT NOTE: Ignore shorthand like:
-> - `(update.needed, .*)=>`
-> - `(markedPages.index, .*)=>`
-
 One MCP client per language, each a variation of the official
 [build-client tutorial](https://modelcontextprotocol.io/docs/2026-07-28/develop/build-client).
 A client launches a weather server over stdio, lists its tools, and runs a

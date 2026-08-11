@@ -86,6 +86,7 @@ goto:eof
   call :_main 1 helper-file CATEGORIZE-LOCAL-WEATHER "src\utils\categorizeLocalWeather.ts"
   call :_main 1 helper-file GUI-RENDER-WEATHER "src\gui\guiRenderWeather.ts"
   call :_main 1 helper-file GUI-DRAW-WEATHER "src\gui\guiDrawWeather.ts"
+  call :_main 1 helper-file GUI-WEATHER-CARD "src\gui\guiWeatherCard.ts"
   call :_main 1 server-file SERVER "src\index.ts"
   if EXIST "%~dp0weather-server\build_source.data.txt" del /Q "%~dp0weather-server\build_source.data.txt" >nul 2>nul
   call :_runBuildExercise 2 & goto:eof

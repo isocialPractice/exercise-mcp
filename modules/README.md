@@ -6,11 +6,6 @@ as the `develop` exercises, but taken somewhere new. Unlike the exercise
 folders there is no `buildExercise` script - each module is a complete,
 runnable project on its own, and largely vibe coded rather than hand-typed.
 
-> [!NOTE]
-> AGENT NOTE: Ignore shorthand like:
-> - `(update.needed, .*)=>`
-> - `(markedPages.index, .*)=>`
-
 ## The Modules
 
 | Module | Language | The twist |

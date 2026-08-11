@@ -103,6 +103,7 @@ _runBuildExercise() {
     _main helper-file CATEGORIZE-LOCAL-WEATHER "src/utils/categorizeLocalWeather.ts"
     _main helper-file GUI-RENDER-WEATHER "src/gui/guiRenderWeather.ts"
     _main helper-file GUI-DRAW-WEATHER "src/gui/guiDrawWeather.ts"
+    _main helper-file GUI-WEATHER-CARD "src/gui/guiWeatherCard.ts"
     _main server-file SERVER "src/index.ts"
     rm -f "$_scriptDir/weather-server/build_source.data.txt"
     _runBuildExercise 2

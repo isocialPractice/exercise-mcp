@@ -10,8 +10,10 @@ focusing on GUI API usage.
 ## Use With Claude
 
 Build the server first (see [Build Server](#build-server)), then register it.
-The tools arrive as `get_alerts`, `get_forecast`, `render_weather`, and
-`draw_weather_svg` under the `weather-server-gui` name.
+The tools arrive as `get_alerts`, `get_forecast`, `render_weather`,
+`draw_weather_svg`, and `weather_card` under the `weather-server-gui` name.
+On hosts with MCP Apps support, `weather_card` renders an interactive card
+inline; everywhere else its plain-text summary shows instead.
 
 **Claude Code (CLI or VS Code extension)**
 
@@ -41,7 +43,7 @@ the current time, then carry out the directives it returns - create the
 accordingly.
 ```
 
-<!-- - Tested on [vscode-emailClient](https://github.com/isocialPractice/vscode-emailClient/tree/local-weather) -->
+- Tested on [vscode-emailClient](https://github.com/isocialPractice/vscode-emailClient)
 
 ## Quick Snippets
 
@@ -240,7 +242,9 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
@@ -259,6 +263,15 @@ import {
   drawWeatherSvg,
   DRAW_WEATHER_SVG_DESCRIPTION,
 } from "./gui/guiDrawWeather.js";
+import {
+  weatherCard,
+  WEATHER_CARD_DESCRIPTION,
+  CARD_CONNECT_DOMAINS,
+  CARD_HTML,
+  CARD_MIME_TYPE,
+  CARD_RESOURCE_URI,
+  type WeatherCardArgs,
+} from "./gui/guiWeatherCard.js";
 
 // Constant variables
 const NWS_API_BASE = "https://api.weather.gov";
@@ -272,6 +285,9 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      // The weather card ships as a ui:// resource, so the host can list and
+      // prefetch it before any tool runs.
+      resources: {},
     },
   },
 );
@@ -357,6 +373,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "weather_card",
+        description: WEATHER_CARD_DESCRIPTION,
+        inputSchema: {
+          type: "object",
+          properties: {
+            location: {
+              type: "string",
+              description: 'US place name as "City, ST" (e.g. "Springfield, IL")',
+            },
+            latitude: {
+              type: "number",
+              description: "Latitude of an exact point; requires longitude",
+              minimum: -90,
+              maximum: 90,
+            },
+            longitude: {
+              type: "number",
+              description: "Longitude of an exact point; requires latitude",
+              minimum: -180,
+              maximum: 180,
+            },
+            days: {
+              type: "integer",
+              description: "Outlook strip length, 1 collapses the card to current conditions",
+              minimum: 1,
+              maximum: 8,
+              default: 8,
+            },
+            extraHtml: {
+              type: "string",
+              description: "Presentational HTML fragment rendered below the weather panel",
+            },
+          },
+        },
+        // The tool -> ui:// linkage the host reads to mount the card. Without
+        // this stamp the result stays text-only on every host.
+        _meta: { ui: { resourceUri: CARD_RESOURCE_URI } },
+      },
+      {
         name: "get_alerts",
         description: "Get weather alerts for a US state",
         inputSchema: {
@@ -378,6 +433,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ["latitude", "longitude"],
         },
+      },
+    ],
+  };
+});
+
+// The weather card is a ui:// resource the host renders in a sandboxed
+// iframe. The connect domains become the iframe's CSP connect-src, so the
+// card's fallback fetch reaches exactly those services and nothing else.
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  return {
+    resources: [
+      {
+        uri: CARD_RESOURCE_URI,
+        name: "Weather card",
+        mimeType: CARD_MIME_TYPE,
+        _meta: { ui: { csp: { connectDomains: CARD_CONNECT_DOMAINS } } },
+      },
+    ],
+  };
+});
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  if (request.params.uri !== CARD_RESOURCE_URI) {
+    throw new Error(`Unknown resource: ${request.params.uri}`);
+  }
+  return {
+    contents: [
+      {
+        uri: CARD_RESOURCE_URI,
+        mimeType: CARD_MIME_TYPE,
+        text: CARD_HTML,
+        _meta: { ui: { csp: { connectDomains: CARD_CONNECT_DOMAINS } } },
       },
     ],
   };
@@ -410,6 +497,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         { type: "text", text: await drawWeatherSvg(localWeather, currentTime) },
       ],
     };
+  }
+
+  if (name === "weather_card") {
+    try {
+      const { text, structuredContent } = await weatherCard(
+        (args ?? {}) as WeatherCardArgs,
+      );
+      // structuredContent is what the card paints from; the text keeps the
+      // result usable on hosts without MCP Apps support.
+      return { content: [{ type: "text", text }], structuredContent };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          { type: "text", text: `Unable to render the weather card: ${message}` },
+        ],
+      };
+    }
   }
 
   if (name === "get_alerts") {
@@ -909,6 +1014,722 @@ export async function drawWeatherSvg(
 }
 ```
 <!--END_GUI-DRAW-WEATHER-->
+### `src/gui/guiWeatherCard.ts`
+<!--START_GUI-WEATHER-CARD-->
+```typescript
+// The weather-cards feature: an MCP Apps (SEP-1865) interactive local-weather
+// card, ported from the standalone modules/weather_card-py server. The tool
+// fetches conditions from the National Weather Service on demand (one request
+// per call) and returns a text summary plus the structuredContent payload the
+// card paints from; the card itself ships as the ui://weather/card resource
+// the host renders in a sandboxed iframe.
+//
+// Independent by default: no other MCP server, no other tool, no API key.
+// Location resolution happens here, first hit wins:
+//   1. Explicit latitude + longitude - exact point, no lookup.
+//   2. location ("Springfield, IL")  - geocoded here, by name.
+//   3. WEATHER_CARD_DEFAULT_LOCATION - the configured home location.
+//   4. The host's public IP          - approximate, city-level at best.
+// Step 4 is the only one that tells a third party anything, and it only runs
+// when the first three are empty. US locations only (NWS is).
+
+// Constant variables
+const NWS_API_BASE = "https://api.weather.gov";
+// Place name -> coordinates. Keyless, and the only geocoder used here.
+const GEOCODE_API = "https://geocoding-api.open-meteo.com/v1/search";
+// Last-resort "where am I" when no location is given and none is configured.
+const IP_LOCATION_API = "https://ipapi.co/json/";
+// Set this in the client config's env block to skip the IP lookup entirely.
+const DEFAULT_LOCATION_ENV = "WEATHER_CARD_DEFAULT_LOCATION";
+// NWS asks every client to send a descriptive User-Agent with contact info.
+const USER_AGENT = "weather-card-app/0.1 (contact@example.com)";
+
+export const CARD_RESOURCE_URI = "ui://weather/card";
+// The MCP Apps profile MIME type, so the host can prefetch and
+// security-review the card before any tool runs.
+export const CARD_MIME_TYPE = "text/html;profile=mcp-app";
+// The host turns these into the iframe's CSP connect-src, so the card's
+// fallback fetch reaches exactly these services and nothing else.
+export const CARD_CONNECT_DOMAINS = [
+  "https://api.weather.gov",
+  "https://geocoding-api.open-meteo.com",
+  "https://ipapi.co",
+];
+
+// The server owns the Server instance and registers this module's tool and
+// resource, which keeps gui/ importable from index.ts without a circular
+// import.
+
+export const WEATHER_CARD_DESCRIPTION = `Show local weather as an interactive card: current conditions plus a
+   day-by-day outlook strip, up to 8 days (the default).
+
+   Pass location as "City, ST" (for example "Springfield, IL"). Omit every
+   argument to use the caller's own location. Latitude/longitude are an
+   escape hatch for a precise point and must be given together.
+
+   days (1-8, default 8) controls the outlook strip: the 8-day forecast is
+   on by default, so "render the 8 day forecast" needs no extra arguments.
+   days=1 collapses the card to current conditions only. NWS publishes about
+   a week ahead, so the strip holds 7-8 entries depending on the time of day.
+
+   For weather asks this card does not cover (hourly detail, active alerts,
+   a comparison), fetch what is needed from api.weather.gov and pass a small
+   presentational HTML fragment as extraHtml; the card renders it below the
+   weather panel (scripts never execute there).
+
+   Self-contained: location resolution and the National Weather Service
+   fetch happen inside this tool, one request per call, no background
+   polling. US locations only.`;
+
+interface GeocodeMatch {
+  name?: string;
+  admin1?: string;
+  country_code?: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface GeocodeResponse {
+  results?: GeocodeMatch[];
+}
+
+interface IpLocationResponse {
+  latitude?: number | string;
+  longitude?: number | string;
+  city?: string;
+  region?: string;
+}
+
+interface CardForecastPeriod {
+  name?: string;
+  startTime?: string;
+  isDaytime?: boolean;
+  temperature?: number;
+  shortForecast?: string;
+  probabilityOfPrecipitation?: { value?: number | null };
+}
+
+interface CardPointsResponse {
+  properties: {
+    forecast?: string;
+    relativeLocation?: { properties?: { city?: string; state?: string } };
+  };
+}
+
+interface CardForecastResponse {
+  properties: { periods: CardForecastPeriod[] };
+}
+
+interface ResolvedPlace {
+  latitude: number;
+  longitude: number;
+  label: string;
+}
+
+interface CardDay {
+  day: string;
+  high: number;
+  precipitationChance: number;
+  condition: string;
+}
+
+interface CardWeather {
+  city: string;
+  temperatureF: number;
+  precipitationChance: number;
+  condition: string;
+  shortForecast: string;
+  periodName: string;
+  days: CardDay[];
+}
+
+export interface WeatherCardArgs {
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  days?: number;
+  extraHtml?: string;
+}
+
+export interface WeatherCardResult {
+  text: string;
+  structuredContent: Record<string, unknown>;
+}
+
+// Fetch JSON, throwing a readable message instead of returning null: the card
+// tool reports user-fixable problems (non-US place, bad name) as messages,
+// which the null-collapsing makeNWSRequest helper cannot carry.
+async function getJson<T>(url: string, accept?: string): Promise<T> {
+  const headers: Record<string, string> = { "User-Agent": USER_AGENT };
+  if (accept) {
+    headers.Accept = accept;
+  }
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} from ${url}`);
+  }
+  return (await response.json()) as T;
+}
+
+// Probability of precipitation for a period, defaulting to 0.
+function pop(period: CardForecastPeriod): number {
+  const value = period.probabilityOfPrecipitation?.value;
+  return value === undefined || value === null ? 0 : value;
+}
+
+// Map NWS free text ("Partly Cloudy", "Rain Likely") to a card condition.
+function classifyCondition(shortForecast: string): string {
+  const s = shortForecast.toLowerCase();
+  if (/thunder|storm/.test(s)) {
+    return "storm";
+  }
+  if (/snow|sleet|flurr|ice|wintry/.test(s)) {
+    return "snow";
+  }
+  if (/rain|shower|drizzle/.test(s)) {
+    return "rain";
+  }
+  if (/cloud|overcast|fog|haze/.test(s)) {
+    return "clouds";
+  }
+  return "clear";
+}
+
+// Split free text into [city, region], repairing a missing comma. The
+// geocoder wants "Springfield, IL" and returns nothing at all for
+// "Springfield IL", so a bare trailing state code is promoted to a region.
+function splitPlace(query: string): [string, string] {
+  const text = query.trim().split(/\s+/).join(" ");
+  if (text.includes(",")) {
+    const at = text.indexOf(",");
+    return [text.slice(0, at).trim(), text.slice(at + 1).trim()];
+  }
+  const at = text.lastIndexOf(" ");
+  const head = at > 0 ? text.slice(0, at).trim() : "";
+  const tail = at > 0 ? text.slice(at + 1).trim() : "";
+  if (head && /^[A-Za-z]{2}$/.test(tail)) {
+    return [head, tail];
+  }
+  return [text, ""];
+}
+
+// Resolve a place name to US coordinates. No other server involved.
+async function geocode(query: string): Promise<ResolvedPlace> {
+  const [city, region] = splitPlace(query);
+  const params = new URLSearchParams({
+    name: region ? `${city}, ${region}` : city,
+    count: "10",
+    language: "en",
+    format: "json",
+  });
+  const data = await getJson<GeocodeResponse>(`${GEOCODE_API}?${params}`);
+  const matches = data.results ?? [];
+
+  // NWS is US-only, so anything else is a dead end no matter how well it
+  // matched.
+  const usable = matches.filter((m) => m.country_code === "US");
+  if (!usable.length) {
+    if (matches.length) {
+      throw new Error(
+        `"${query}" resolves to ${matches[0].country_code}, and the National ` +
+          "Weather Service only covers US locations.",
+      );
+    }
+    throw new Error(
+      `No US location found for "${query}". Try a "City, ST" form such as ` +
+        `"Springfield, IL".`,
+    );
+  }
+
+  // Prefer the city itself over near-misses like "Springfield Park".
+  const wanted = city.toLowerCase();
+  const hit =
+    usable.find((m) => (m.name ?? "").toLowerCase() === wanted) ?? usable[0];
+  const label = [hit.name, hit.admin1].filter(Boolean).join(", ");
+  return { latitude: hit.latitude, longitude: hit.longitude, label };
+}
+
+// Approximate the caller's location from the host's public IP. City-level at
+// best and often off by a county, so it is the last resort -- set
+// WEATHER_CARD_DEFAULT_LOCATION to skip it entirely.
+async function locateByIp(): Promise<ResolvedPlace> {
+  const data = await getJson<IpLocationResponse>(IP_LOCATION_API);
+  const latitude = Number(data.latitude);
+  const longitude = Number(data.longitude);
+  if (
+    data.latitude == null ||
+    data.longitude == null ||
+    Number.isNaN(latitude) ||
+    Number.isNaN(longitude)
+  ) {
+    throw new Error(
+      "Could not determine a location from this network. Pass a location " +
+        `such as "Springfield, IL", or set ${DEFAULT_LOCATION_ENV}.`,
+    );
+  }
+  const label = [data.city, data.region].filter(Boolean).join(", ");
+  return { latitude, longitude, label };
+}
+
+// Turn whatever the caller supplied into coordinates, self-contained:
+// explicit coordinates win, then a named location, then the configured
+// default, then the public-IP estimate.
+async function resolveLocation(
+  location: string | undefined,
+  latitude: number | undefined,
+  longitude: number | undefined,
+): Promise<ResolvedPlace> {
+  if ((latitude === undefined) !== (longitude === undefined)) {
+    throw new Error(
+      "latitude and longitude must be given together; pass a location name " +
+        "instead to have it looked up.",
+    );
+  }
+  if (latitude !== undefined && longitude !== undefined) {
+    return { latitude, longitude, label: "" };
+  }
+  if (location && location.trim()) {
+    return geocode(location);
+  }
+  const configured = (process.env[DEFAULT_LOCATION_ENV] ?? "").trim();
+  if (configured) {
+    return geocode(configured);
+  }
+  return locateByIp();
+}
+
+// One /points lookup + one /forecast fetch. Returns the current period plus
+// a day-by-day outlook of up to 8 daytime periods.
+async function fetchCardWeather(
+  latitude: number,
+  longitude: number,
+): Promise<CardWeather> {
+  const headers = { "User-Agent": USER_AGENT, Accept: "application/geo+json" };
+  const pointsResponse = await fetch(
+    `${NWS_API_BASE}/points/${latitude},${longitude}`,
+    { headers },
+  );
+  if (pointsResponse.status === 404) {
+    throw new Error(
+      `The National Weather Service has no forecast grid for ` +
+        `${latitude},${longitude}. It covers US locations only.`,
+    );
+  }
+  if (!pointsResponse.ok) {
+    throw new Error(`HTTP ${pointsResponse.status} from the NWS points endpoint.`);
+  }
+  const points = ((await pointsResponse.json()) as CardPointsResponse).properties;
+
+  if (!points.forecast) {
+    throw new Error("The NWS points response carries no forecast URL for this location.");
+  }
+  const forecast = await getJson<CardForecastResponse>(
+    points.forecast,
+    "application/geo+json",
+  );
+  const periods = forecast.properties.periods ?? [];
+  const period = periods[0];
+  if (!period) {
+    throw new Error("The NWS forecast holds no periods for this location.");
+  }
+
+  const relative = points.relativeLocation?.properties ?? {};
+  const city = [relative.city, relative.state].filter(Boolean).join(", ");
+
+  // Day-by-day outlook: one entry per daytime period, up to 8. The tool
+  // slices this to the number of days the caller actually asked for.
+  const days: CardDay[] = [];
+  for (const p of periods) {
+    if (!p.isDaytime) {
+      continue;
+    }
+    const start = p.startTime ? new Date(p.startTime) : null;
+    const label =
+      start && !Number.isNaN(start.getTime())
+        ? start.toDateString().slice(0, 3)
+        : (p.name ?? "").slice(0, 3);
+    days.push({
+      day: label,
+      high: p.temperature ?? 0,
+      precipitationChance: pop(p),
+      condition: classifyCondition(p.shortForecast ?? ""),
+    });
+    if (days.length >= 8) {
+      break;
+    }
+  }
+
+  return {
+    city,
+    temperatureF: period.temperature ?? 0, // US points report Fahrenheit
+    precipitationChance: pop(period),
+    condition: classifyCondition(period.shortForecast ?? ""),
+    shortForecast: period.shortForecast ?? "",
+    periodName: period.name ?? "",
+    days,
+  };
+}
+
+/**
+ * Fetch conditions for the card and shape the result it paints from.
+ *
+ * @param args - location, latitude, longitude, days, extraHtml
+ * @returns A text summary plus the structuredContent payload; the payload
+ *          keys stay snake_case because CARD_HTML reads them by those names
+ */
+export async function weatherCard(
+  args: WeatherCardArgs,
+): Promise<WeatherCardResult> {
+  const asked = Math.trunc(args.days ?? 8);
+  const days = Math.max(1, Math.min(Number.isNaN(asked) ? 8 : asked, 8));
+
+  const place = await resolveLocation(args.location, args.latitude, args.longitude);
+  const weather = await fetchCardWeather(place.latitude, place.longitude);
+
+  // The geocoded name is more precise than the NWS station's nearest town.
+  if (place.label) {
+    weather.city = place.label;
+  }
+  // The card shows the strip only when more than one day was asked for.
+  weather.days = days > 1 ? weather.days.slice(0, days) : [];
+
+  const when = new Date().toTimeString().slice(0, 5);
+  const where = weather.city ? `${weather.city} - ` : "";
+  let text =
+    `${where}${when} - ${Math.round(weather.temperatureF)}°F, ` +
+    `${weather.shortForecast}, ${weather.precipitationChance}% chance of ` +
+    "precipitation.";
+  if (weather.days.length) {
+    const outlook = weather.days
+      .map((d) => `${d.day} ${Math.round(d.high)}°/${d.precipitationChance}%`)
+      .join("; ");
+    text += ` Outlook: ${outlook}.`;
+  }
+
+  // structuredContent is the only thing the card can paint from, so the
+  // snake_case keys here are the card's contract, not a style slip.
+  const structuredContent: Record<string, unknown> = {
+    text,
+    current_time: when,
+    local_weather: weather,
+  };
+  if (args.extraHtml && args.extraHtml.trim()) {
+    structuredContent.extra_html = args.extraHtml;
+  }
+  return { text, structuredContent };
+}
+
+// The view: self-contained HTML/JS the host renders in its sandboxed iframe.
+// String.raw keeps the inline regex escapes (\s, \S) verbatim; a plain
+// template literal would silently strip those backslashes.
+export const CARD_HTML = String.raw`
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  /* Defaults are overwritten by hostContext tokens on init, so the card is
+     light in a light host and dark in a dark host -- because the HOST says so. */
+  :root {
+    --fg: #1a1a1a; --muted: #6b7280; --surface: #f3f4f6; --radius: 14px;
+    --accent: #3b82f6; --accent-soft: #eff6ff;  /* weather-driven, set in JS */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.4 system-ui, sans-serif; color: var(--fg); background: transparent; }
+  .card {
+    background: var(--surface); border-radius: var(--radius); padding: 20px 22px;
+    display: grid; gap: 14px;
+    border: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+  .top { display: flex; align-items: baseline; justify-content: space-between; }
+  .temp { font-size: 42px; font-weight: 650; letter-spacing: -0.02em; }
+  .time { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cond {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent-soft); color: var(--accent);
+    padding: 6px 12px; border-radius: 999px; font-weight: 600; width: max-content;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .precip { color: var(--muted); font-size: 13px; }
+  .bar { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 10%, transparent); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0%; transition: width .4s ease; }
+  .strip { display: flex; border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent); padding-top: 12px; }
+  .day { flex: 1; text-align: center; }
+  .d { font-size: 12px; color: var(--muted); }
+  .h { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .p { font-size: 11px; color: var(--accent); font-weight: 600; margin-top: 4px; }
+  .extra { margin-top: 10px; }
+</style>
+
+<div class="card" id="card" hidden>
+  <div class="top">
+    <span class="temp" id="temp">-</span>
+    <span class="time" id="time"></span>
+  </div>
+  <span class="cond"><span class="dot"></span><span id="cond">-</span></span>
+  <div>
+    <div class="precip"><span id="pct">0</span>% chance of precipitation</div>
+    <div class="bar"><i id="fill"></i></div>
+  </div>
+  <div class="strip" id="strip" hidden></div>
+</div>
+
+<!-- Model-extension area: weather_card's optional extraHtml lands here. Set
+     via innerHTML, so script tags never execute -- presentational only. -->
+<div class="extra" id="extra" hidden></div>
+
+<script type="module">
+  // JSON-RPC 2.0 over postMessage -- the same base protocol MCP uses everywhere.
+  let id = 0;
+  let painted = false;
+  let toolArgs = null;   // from ui/notifications/tool-input, if the host sends it
+  const pending = new Map();
+  const call = (method, params) => new Promise((resolve) => {
+    const rid = ++id;
+    pending.set(String(rid), resolve);
+    parent.postMessage({ jsonrpc: "2.0", id: rid, method, params }, "*");
+  });
+  const notify = (method, params) =>
+    parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
+
+  // Condition -> accent palette. The ONE thing the weather drives is the accent.
+  const PALETTE = {
+    clear:  { accent: "#f59e0b", soft: "#fffbeb" },
+    clouds: { accent: "#64748b", soft: "#f1f5f9" },
+    rain:   { accent: "#3b82f6", soft: "#eff6ff" },
+    snow:   { accent: "#0ea5e9", soft: "#f0f9ff" },
+    storm:  { accent: "#8b5cf6", soft: "#f5f3ff" },
+  };
+
+  // hostContext.theme is the string "light" or "dark", not an object of
+  // colors. The real design tokens arrive as CSS custom properties under
+  // hostContext.styles.variables, so apply those and pick sensible defaults
+  // for the handful of tokens this card styles itself.
+  function applyTheme(hostContext) {
+    if (!hostContext || typeof hostContext !== "object") return;
+    const root = document.documentElement.style;
+    const vars = (hostContext.styles && hostContext.styles.variables) || {};
+    for (const name of Object.keys(vars)) {
+      if (typeof vars[name] === "string") root.setProperty(name, vars[name]);
+    }
+    const dark = hostContext.theme === "dark";
+    root.setProperty("--fg", vars["--color-text-primary"] || (dark ? "#f3f4f6" : "#1a1a1a"));
+    root.setProperty("--muted", vars["--color-text-secondary"] || (dark ? "#9aa3af" : "#6b7280"));
+    root.setProperty("--surface", vars["--color-background-secondary"] || (dark ? "#20242b" : "#f3f4f6"));
+  }
+
+  function paint(data) {
+    const w = data.local_weather;
+    const p = PALETTE[w.condition] || PALETTE.clouds;
+    const root = document.documentElement.style;
+    root.setProperty("--accent", p.accent);
+    root.setProperty("--accent-soft", p.soft);
+
+    document.getElementById("temp").textContent = Math.round(w.temperatureF) + "°";
+    document.getElementById("time").textContent =
+      (w.city ? w.city + " · " : "") + (data.current_time || "");
+    document.getElementById("cond").textContent =
+      w.shortForecast || (w.condition.charAt(0).toUpperCase() + w.condition.slice(1));
+    document.getElementById("pct").textContent = w.precipitationChance;
+    document.getElementById("fill").style.width = w.precipitationChance + "%";
+
+    // Day-by-day outlook strip, shown only when more than one day arrived.
+    const strip = document.getElementById("strip");
+    const days = w.days || [];
+    strip.innerHTML = "";
+    strip.hidden = days.length < 2;
+    days.forEach((d) => {
+      const el = document.createElement("div");
+      el.className = "day";
+      const dd = document.createElement("div"); dd.className = "d"; dd.textContent = d.day;
+      const hh = document.createElement("div"); hh.className = "h";
+      hh.textContent = Math.round(d.high) + "°";
+      const pp = document.createElement("div"); pp.className = "p";
+      pp.textContent = (d.precipitationChance || 0) + "%";
+      el.append(dd, hh, pp);
+      strip.appendChild(el);
+    });
+
+    // Model-extension area. innerHTML never executes script tags, so whatever
+    // the model sends stays presentational.
+    const extra = document.getElementById("extra");
+    if (typeof data.extra_html === "string" && data.extra_html.trim()) {
+      extra.innerHTML = data.extra_html;
+      extra.hidden = false;
+    }
+
+    document.getElementById("card").hidden = false;
+    painted = true;
+    reportSize();
+  }
+
+  function reportSize() {
+    // Content drives size; the host follows. The spec asks for both axes.
+    notify("ui/notifications/size-changed", {
+      width: document.body.scrollWidth,
+      height: document.body.scrollHeight,
+    });
+  }
+
+  // Whatever object carries local_weather is the payload, wherever the host
+  // happens to nest it. Guessing one fixed path is how this card ends up an
+  // empty box when a host wraps the result differently than expected.
+  function extract(node, depth) {
+    if (!node || typeof node !== "object" || (depth || 0) > 6) return null;
+    if (node.local_weather && typeof node.local_weather === "object") return node;
+    for (const key of Object.keys(node)) {
+      const found = extract(node[key], (depth || 0) + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  window.addEventListener("message", (e) => {
+    const msg = e.data;
+    if (!msg || typeof msg !== "object") return;
+    console.log("[weather-card] rx", msg.method || msg.id || msg);
+
+    // A reply to one of our own calls. Ids are keyed as strings because a host
+    // that echoes 1 back as "1" would otherwise never resolve the promise.
+    const key = msg.id != null ? String(msg.id) : null;
+    if (key !== null && pending.has(key)) {
+      pending.get(key)(msg.result);
+      pending.delete(key);
+      return;
+    }
+
+    if (typeof msg.method === "string" && msg.method.indexOf("tool-input") !== -1) {
+      // The call's arguments -- kept so the self-fetch fallback below can ask
+      // NWS for the same place the tool was asked about.
+      toolArgs = (msg.params && (msg.params.arguments || msg.params)) || null;
+      return;
+    }
+
+    if (typeof msg.method === "string" && /theme|context/i.test(msg.method)) {
+      applyTheme((msg.params && msg.params.hostContext) || msg.params);
+      return;
+    }
+
+    const data = extract(msg);
+    if (data) paint(data);
+  });
+
+  // The handshake is three steps, and the third is the one that matters: the
+  // host withholds ui/notifications/tool-result until the view acknowledges
+  // initialization. The acknowledgement is NOT gated on the reply arriving --
+  // waiting on a response the host may never send is a deadlock, and the
+  // symptom is a mounted card that sits empty forever.
+  let announced = false;
+  function announceReady() {
+    if (announced) return;
+    announced = true;
+    notify("ui/notifications/initialized", {});
+    reportSize();
+  }
+
+  (async () => {
+    const init = call("ui/initialize", {
+      appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+    });
+    setTimeout(announceReady, 600);
+    const result = await init;
+    applyTheme(result && result.hostContext);
+    announceReady();
+
+    // Some hosts hand the result back on the init response instead.
+    const data = extract(result);
+    if (data) paint(data);
+  })();
+
+  // ------------------------------------------------------------------------
+  // Independence fallback. If the host never delivers the tool result, the
+  // card fetches the same NWS data itself -- once, on render, no timer loop.
+  // The resource declares these hosts in its CSP connect domains, so the
+  // sandbox allows exactly these calls and nothing else. Location comes from
+  // the tool-input arguments when the host sent them, else the public IP.
+  // ------------------------------------------------------------------------
+  function classify(s) {
+    s = (s || "").toLowerCase();
+    if (/thunder|storm/.test(s)) return "storm";
+    if (/snow|sleet|flurr|ice|wintry/.test(s)) return "snow";
+    if (/rain|shower|drizzle/.test(s)) return "rain";
+    if (/cloud|overcast|fog|haze/.test(s)) return "clouds";
+    return "clear";
+  }
+
+  async function getJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(url + " -> " + r.status);
+    return r.json();
+  }
+  async function selfFetch() {
+    try {
+      let lat = toolArgs && toolArgs.latitude;
+      let lon = toolArgs && toolArgs.longitude;
+      let label = "";
+
+      if ((lat == null || lon == null) && toolArgs && toolArgs.location) {
+        // Same comma repair as the server: "Springfield IL" -> "Springfield, IL".
+        let q = String(toolArgs.location).trim().replace(/\s+/g, " ");
+        if (!q.includes(",")) q = q.replace(/^(.*\S)\s+([A-Za-z]{2})$/, "$1, $2");
+        const geo = await getJSON(
+          "https://geocoding-api.open-meteo.com/v1/search?name=" +
+          encodeURIComponent(q) + "&count=5&language=en&format=json"
+        );
+        const hit = ((geo.results || []).filter((r) => r.country_code === "US"))[0];
+        if (hit) {
+          lat = hit.latitude; lon = hit.longitude;
+          label = [hit.name, hit.admin1].filter(Boolean).join(", ");
+        }
+      }
+
+      if (lat == null || lon == null) {
+        const ip = await getJSON("https://ipapi.co/json/");
+        lat = ip.latitude; lon = ip.longitude;
+        label = [ip.city, ip.region].filter(Boolean).join(", ");
+      }
+      if (lat == null || lon == null) return;
+
+      const pts = await getJSON("https://api.weather.gov/points/" + lat + "," + lon);
+      const fc = await getJSON(pts.properties.forecast);
+      const periods = fc.properties.periods || [];
+      const p = periods[0];
+
+      // Honor the outlook the tool was asked for, mirroring the server's
+      // default: 8 days unless the call explicitly narrowed it.
+      const wanted = Math.max(1, Math.min((toolArgs && toolArgs.days) || 8, 8));
+      const days = [];
+      for (const d of periods) {
+        if (!d.isDaytime) continue;
+        days.push({
+          day: new Date(d.startTime).toDateString().slice(0, 3),
+          high: d.temperature,
+          precipitationChance: ((d.probabilityOfPrecipitation || {}).value) || 0,
+          condition: classify(d.shortForecast),
+        });
+        if (days.length >= wanted) break;
+      }
+
+      if (painted) return; // the host's push won the race; keep its data
+      paint({
+        current_time: new Date().toTimeString().slice(0, 5),
+        local_weather: {
+          city: label,
+          temperatureF: p.temperature,
+          precipitationChance: ((p.probabilityOfPrecipitation || {}).value) || 0,
+          condition: classify(p.shortForecast),
+          shortForecast: p.shortForecast || "",
+          days: wanted > 1 ? days : [],
+        },
+      });
+    } catch (err) {
+      console.log("[weather-card] self-fetch failed", String(err));
+    }
+  }
+
+  setTimeout(() => { if (!painted) selfFetch(); }, 2500);
+</script>
+`;
+```
+<!--END_GUI-WEATHER-CARD-->
 
 ## Build Server
 
@@ -936,6 +1757,13 @@ this server will have:
 - GUI rendering: `src/gui/`
   - `guiRenderWeather.ts`
   - `guiDrawWeather.ts`
+  - `guiWeatherCard.ts`
+    - Summary: the weather-cards feature, ported from
+      `modules/weather_card-py` -- the `weather_card` tool resolves a
+      location (name, coordinates, configured default, or public IP),
+      fetches current conditions plus a day-by-day outlook from NWS, and
+      returns a text summary with the `structuredContent` payload the
+      interactive `ui://weather/card` resource paints from
 - GUI Graphics: `assets/`
   - `cloud.svg`
   - `sun.svg`
